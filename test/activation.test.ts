@@ -225,4 +225,26 @@ describe("SkillActivator", () => {
     expect(projectPath).toContain("my-skill");
     expect(projectPath).toContain("SKILL.md");
   });
+
+  /* 12 */
+  it("rejects skill names that are not a single path segment", async () => {
+    const sourcePath = createSourceSkill(tmpDir, "unsafe-source");
+
+    await expect(
+      activator.activate("../escape", sourcePath, {
+        categories: ["testing"],
+      }),
+    ).rejects.toThrow("Invalid skill name");
+
+    expect(() => activator.isAlreadyInstalled("../escape")).toThrow(
+      "Invalid skill name",
+    );
+    expect(() => activator.detectConflicts("../escape")).toThrow(
+      "Invalid skill name",
+    );
+    expect(() => activator.getActivationPath("../escape")).toThrow(
+      "Invalid skill name",
+    );
+    expect(fs.existsSync(path.join(tmpDir, "escape"))).toBe(false);
+  });
 });

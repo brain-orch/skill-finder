@@ -4,6 +4,10 @@ import * as os from "node:os";
 import * as crypto from "node:crypto";
 import type { SkillMarketplace } from "../types.js";
 import type { SkillIndexer } from "./indexer.js";
+import {
+  getSkillNameFromIdentifier,
+  validateSkillName,
+} from "../skill-name.js";
 
 export interface CachedSkillInfo {
   id: string;
@@ -52,7 +56,7 @@ export class CacheManager {
     marketplace: SkillMarketplace,
     targetDir?: string,
   ): Promise<{ path: string; files: string[] }> {
-    const name = identifier.split(":").pop() ?? identifier;
+    const name = getSkillNameFromIdentifier(identifier);
     const destDir = targetDir ?? path.join(this.config.globalDir, name);
 
     // 1. Create destination directory
@@ -100,32 +104,35 @@ export class CacheManager {
   }
 
   isCached(_identifier: string, name: string): boolean {
+    const safeName = validateSkillName(name);
     return (
-      this.skillFileExists(this.config.globalDir, name) ||
-      this.skillFileExists(this.config.projectDir, name)
+      this.skillFileExists(this.config.globalDir, safeName) ||
+      this.skillFileExists(this.config.projectDir, safeName)
     );
   }
 
   getSkillPath(_identifier: string, name: string): string | null {
-    const globalPath = path.join(this.config.globalDir, name, "SKILL.md");
+    const safeName = validateSkillName(name);
+    const globalPath = path.join(this.config.globalDir, safeName, "SKILL.md");
     if (fs.existsSync(globalPath)) return globalPath;
 
-    const projectPath = path.join(this.config.projectDir, name, "SKILL.md");
+    const projectPath = path.join(this.config.projectDir, safeName, "SKILL.md");
     if (fs.existsSync(projectPath)) return projectPath;
 
     return null;
   }
 
   remove(_identifier: string, name: string): boolean {
+    const safeName = validateSkillName(name);
     let deleted = false;
 
-    const globalDir = path.join(this.config.globalDir, name);
+    const globalDir = path.join(this.config.globalDir, safeName);
     if (fs.existsSync(globalDir)) {
       fs.rmSync(globalDir, { recursive: true, force: true });
       deleted = true;
     }
 
-    const projectDir = path.join(this.config.projectDir, name);
+    const projectDir = path.join(this.config.projectDir, safeName);
     if (fs.existsSync(projectDir)) {
       fs.rmSync(projectDir, { recursive: true, force: true });
       deleted = true;
