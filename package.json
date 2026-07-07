@@ -27,7 +27,7 @@
   "author": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brainorch/skill-finder"
+    "url": "https://github.com/brain-orch/skill-finder"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.17.0"

@@ -2,4 +2,6 @@ node_modules/
 *.tsbuildinfo
 .cache/
 .tmp/
+.codegraph/
+.omo/
 # dist/ is checked in so npm install from GitHub works without building

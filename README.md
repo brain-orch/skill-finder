@@ -3,51 +3,52 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![OpenCode Plugin](https://img.shields.io/badge/OpenCode-Plugin-green.svg)](https://opencode.ai)
+[![npm version](https://img.shields.io/npm/v/opencode-skill-finder.svg)](https://www.npmjs.com/package/opencode-skill-finder)
 
 > **OpenCode plugin that watches your task context, searches 7 skill marketplaces, caches locally with FTS5, and auto-recommends relevant skills.**
 
 ## Quick Install
 
-### One-liner (PowerShell)
-
-```powershell
-iwr -useb https://raw.githubusercontent.com/brainorch/skill-finder/main/install.ps1 | iex
-```
-
-### One-liner (bash)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/brainorch/skill-finder/main/install.sh | sh
-```
-
-### npm
+### npm (recommended)
 
 ```bash
 npm install -g opencode-skill-finder
 ```
 
+### One-liner (PowerShell)
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.ps1 | iex
+```
+
+### One-liner (bash)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.sh | sh
+```
+
 ### bun
 
 ```bash
-bun install opencode-skill-finder
+bun install -g opencode-skill-finder
 ```
 
 ### pnpm
 
 ```bash
-pnpm add opencode-skill-finder
+pnpm add -g opencode-skill-finder
 ```
 
 ### yarn
 
 ```bash
-yarn add opencode-skill-finder
+yarn global add opencode-skill-finder
 ```
 
 ### Manual Install
 
 ```bash
-git clone https://github.com/brainorch/skill-finder.git
+git clone https://github.com/brain-orch/skill-finder.git
 cd skill-finder
 npm install
 npm run build
@@ -191,7 +192,7 @@ Use these tools anytime:
 ### Setup
 
 ```bash
-git clone https://github.com/brainorch/skill-finder.git
+git clone https://github.com/brain-orch/skill-finder.git
 cd skill-finder
 npm install
 ```
