@@ -9,11 +9,11 @@
 
 ## Quick Install
 
-Pilih metode yang sesuai dengan kebutuhan Anda:
+Choose the method that fits your setup:
 
 ### npm (recommended)
 
-Cocok untuk **semua pengguna** yang sudah memiliki Node.js terinstal. Metode paling universal dan mudah diupdate.
+Best for **all users** with Node.js installed. Universal and easy to update.
 
 ```bash
 npm install -g opencode-skill-finder
@@ -21,7 +21,7 @@ npm install -g opencode-skill-finder
 
 ### One-liner (PowerShell)
 
-Cocok untuk **pengguna Windows** yang menginginkan instalasi cepat tanpa perlu Node.js terinstal terlebih dahulu.
+Best for **Windows users** who want a quick install without Node.js.
 
 ```powershell
 iwr -useb https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.ps1 | iex
@@ -29,7 +29,7 @@ iwr -useb https://raw.githubusercontent.com/brain-orch/skill-finder/main/install
 
 ### One-liner (bash)
 
-Cocok untuk **pengguna Linux/macOS** yang menginginkan instalasi cepat tanpa perlu Node.js terinstal terlebih dahulu.
+Best for **Linux/macOS users** who want a quick install without Node.js.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.sh | sh
@@ -37,7 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/brain-orch/skill-finder/main/instal
 
 ### bun
 
-Cocok untuk **pengguna Bun** yang lebih suka menggunakan runtime alternatif pengganti Node.js.
+Best for **Bun users** who prefer an alternative Node.js runtime.
 
 ```bash
 bun install -g opencode-skill-finder
@@ -45,7 +45,7 @@ bun install -g opencode-skill-finder
 
 ### pnpm
 
-Cocok untuk **pengguna pnpm** yang menginginkan instalasi lebih cepat dengan disk space lebih efisien.
+Best for **pnpm users** who want faster installs with efficient disk usage.
 
 ```bash
 pnpm add -g opencode-skill-finder
@@ -53,7 +53,7 @@ pnpm add -g opencode-skill-finder
 
 ### yarn
 
-Cocok untuk **pengguna Yarn Classic** yang sudah terbiasa dengan ekosistem Yarn.
+Best for **Yarn Classic users** already familiar with the Yarn ecosystem.
 
 ```bash
 yarn global add opencode-skill-finder
@@ -61,7 +61,7 @@ yarn global add opencode-skill-finder
 
 ### Manual Install
 
-Cocok untuk **pengembang / kontributor** yang ingin melakukan modifikasi source code atau berkontribusi ke repository.
+Best for **developers / contributors** who want to modify the source code or contribute to the repository.
 
 ```bash
 git clone https://github.com/brain-orch/skill-finder.git
