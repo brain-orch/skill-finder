@@ -1,0 +1,1 @@
+{"version":3,"file":"recommender.js","sourceRoot":"","sources":["../../src/plugin/recommender.ts"],"names":[],"mappings":"AAEA,MAAM,OAAO,gBAAgB;IAC3B;QACE,MAAM,IAAI,KAAK,CAAC,iBAAiB,CAAC,CAAC;IACrC,CAAC;IAED,KAAK,CAAC,SAAS,CAAC,OAAiB;QAC/B,MAAM,IAAI,KAAK,CAAC,iBAAiB,CAAC,CAAC;IACrC,CAAC;CACF"}
