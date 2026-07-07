@@ -71,6 +71,20 @@ npm run build
 npm run postinstall
 ```
 
+## Upgrade
+
+How to update SkillFinder to the latest version:
+
+| Install Method | Upgrade Command |
+|----------------|----------------|
+| npm | `npm update -g opencode-skill-finder` |
+| bun | `bun update -g opencode-skill-finder` |
+| pnpm | `pnpm update -g opencode-skill-finder` |
+| yarn | `yarn global upgrade opencode-skill-finder` |
+| PowerShell one-liner | Re-run the install script |
+| bash one-liner | Re-run the install script |
+| Manual | `git pull && npm install && npm run build` |
+
 ## What It Does
 
 SkillFinder enhances your OpenCode experience by:
