@@ -9,7 +9,11 @@
 
 ## Quick Install
 
+Pilih metode yang sesuai dengan kebutuhan Anda:
+
 ### npm (recommended)
+
+Cocok untuk **semua pengguna** yang sudah memiliki Node.js terinstal. Metode paling universal dan mudah diupdate.
 
 ```bash
 npm install -g opencode-skill-finder
@@ -17,11 +21,15 @@ npm install -g opencode-skill-finder
 
 ### One-liner (PowerShell)
 
+Cocok untuk **pengguna Windows** yang menginginkan instalasi cepat tanpa perlu Node.js terinstal terlebih dahulu.
+
 ```powershell
 iwr -useb https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.ps1 | iex
 ```
 
 ### One-liner (bash)
+
+Cocok untuk **pengguna Linux/macOS** yang menginginkan instalasi cepat tanpa perlu Node.js terinstal terlebih dahulu.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/brain-orch/skill-finder/main/install.sh | sh
@@ -29,11 +37,15 @@ curl -fsSL https://raw.githubusercontent.com/brain-orch/skill-finder/main/instal
 
 ### bun
 
+Cocok untuk **pengguna Bun** yang lebih suka menggunakan runtime alternatif pengganti Node.js.
+
 ```bash
 bun install -g opencode-skill-finder
 ```
 
 ### pnpm
+
+Cocok untuk **pengguna pnpm** yang menginginkan instalasi lebih cepat dengan disk space lebih efisien.
 
 ```bash
 pnpm add -g opencode-skill-finder
@@ -41,11 +53,15 @@ pnpm add -g opencode-skill-finder
 
 ### yarn
 
+Cocok untuk **pengguna Yarn Classic** yang sudah terbiasa dengan ekosistem Yarn.
+
 ```bash
 yarn global add opencode-skill-finder
 ```
 
 ### Manual Install
+
+Cocok untuk **pengembang / kontributor** yang ingin melakukan modifikasi source code atau berkontribusi ke repository.
 
 ```bash
 git clone https://github.com/brain-orch/skill-finder.git
