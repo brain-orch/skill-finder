@@ -103,6 +103,22 @@ const KEYWORD_MAP: KeywordEntry[] = [
   { keywords: ["security", "auth", "login"], category: "authentication", confidence: 0.5 },
   // programming (generic — lower confidence)
   { keywords: ["code", "coding", "programming", "function", "class"], category: "programming", confidence: 0.4 },
+  // typescript
+  { keywords: ["typescript", "ts", "type"], category: "typescript", confidence: 0.7 },
+  // python
+  { keywords: ["python", "py", "django", "flask"], category: "python", confidence: 0.7 },
+  // debugging
+  { keywords: ["debug", "debugging", "bug", "error"], category: "debugging", confidence: 0.7 },
+  // documentation
+  { keywords: ["markdown", "md", "docs", "documentation"], category: "documentation", confidence: 0.7 },
+  // config
+  { keywords: ["config", "configuration", "env", "dotenv"], category: "config", confidence: 0.6 },
+  // mobile
+  { keywords: ["mobile", "ios", "android", "react-native"], category: "mobile", confidence: 0.6 },
+  // performance
+  { keywords: ["performance", "optimize", "optimization", "slow"], category: "performance", confidence: 0.6 },
+  // regex
+  { keywords: ["regex", "regexp", "pattern"], category: "programming", confidence: 0.5 },
 ];
 
 /** File extension → category mapping. */
@@ -174,22 +190,38 @@ export class TaskDetector {
       .split(/[^a-z0-9./]+/)
       .filter((t) => t.length > 0 && !STOP_WORDS.has(t));
 
-    // 2. Check keywords
+    // 2. Check keywords — collect ALL matches, combine via noisy-OR per category
+    const categoryConfidences = new Map<string, number>();
+
     for (const token of tokens) {
       for (const entry of KEYWORD_MAP) {
         if (entry.keywords.includes(token)) {
-          signals.push(this.keywordSignal(token, entry.category, entry.confidence));
+          const existing = categoryConfidences.get(entry.category);
+          if (existing !== undefined) {
+            // Noisy-OR: P(at least one) = 1 - Π(1 - Pi)
+            categoryConfidences.set(entry.category, 1 - (1 - existing) * (1 - entry.confidence));
+          } else {
+            categoryConfidences.set(entry.category, entry.confidence);
+          }
         }
       }
     }
 
-    // 3. Check for multi-word keyword matches in original text
     for (const entry of KEYWORD_MAP) {
       for (const kw of entry.keywords) {
         if (kw.includes(" ") && lower.includes(kw)) {
-          signals.push(this.keywordSignal(kw, entry.category, entry.confidence));
+          const existing = categoryConfidences.get(entry.category);
+          if (existing !== undefined) {
+            categoryConfidences.set(entry.category, 1 - (1 - existing) * (1 - entry.confidence));
+          } else {
+            categoryConfidences.set(entry.category, entry.confidence);
+          }
         }
       }
+    }
+
+    for (const [category, confidence] of categoryConfidences) {
+      signals.push(this.keywordSignal(category, category, confidence));
     }
 
     // 4. Check for file extensions embedded in text
