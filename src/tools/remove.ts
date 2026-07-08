@@ -2,7 +2,8 @@ import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SKILLS_DIR } from "../constants.js";
+import { SkillLockManager } from "../cache/skill-lock.js";
+import { detectActiveAgents, AGENT_TARGETS } from "../installer/agent-targets.js";
 
 const removeArgsSchema = z.object({
   identifier: z.string().describe("Skill identifier (required)"),
@@ -17,47 +18,77 @@ export const removeTool = tool({
       return "❌ Error: identifier is required and must be non-empty.";
     }
 
-    const baseDir = path.join(ctx.directory || process.cwd(), SKILLS_DIR);
+    const projectRoot = ctx.directory || process.cwd();
+    const activeAgents = detectActiveAgents(projectRoot);
+    if (activeAgents.length === 0) {
+      activeAgents.push("opencode");
+    }
 
     // Parse identifier: "{marketplace}:{name}" or just "{name}"
-    let skillPath: string | null = null;
-    let relativePath = "";
+    let marketplace: string;
+    let skillName: string;
 
     if (identifier.includes(":")) {
-      const [marketplace, name] = identifier.split(":", 2);
-      skillPath = path.join(baseDir, marketplace, name);
-      relativePath = path.join(SKILLS_DIR, marketplace, name);
+      [marketplace, skillName] = identifier.split(":", 2);
     } else {
       // Search all marketplace dirs for the skill name
-      if (fs.existsSync(baseDir)) {
-        const marketplaces = fs.readdirSync(baseDir).filter((d) => {
-          const full = path.join(baseDir, d);
+      marketplace = "";
+      skillName = identifier;
+    }
+
+    const removedPaths: string[] = [];
+
+    for (const agent of activeAgents) {
+      const agentInfo = AGENT_TARGETS[agent];
+      const agentDir = path.join(projectRoot, agentInfo.dir);
+
+      if (!fs.existsSync(agentDir)) continue;
+
+      if (marketplace) {
+        // Direct path
+        const skillPath = path.join(agentDir, marketplace, skillName);
+        if (fs.existsSync(skillPath) && fs.statSync(skillPath).isDirectory()) {
+          fs.rmSync(skillPath, { recursive: true, force: true });
+          removedPaths.push(path.relative(projectRoot, skillPath));
+        }
+      } else {
+        // Search all marketplace dirs
+        const marketplaces = fs.readdirSync(agentDir).filter((d) => {
+          const full = path.join(agentDir, d);
           return fs.statSync(full).isDirectory();
         });
+
         for (const mp of marketplaces) {
-          const candidate = path.join(baseDir, mp, identifier);
+          const candidate = path.join(agentDir, mp, skillName);
           if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
-            skillPath = candidate;
-            relativePath = path.join(SKILLS_DIR, mp, identifier);
-            break;
+            fs.rmSync(candidate, { recursive: true, force: true });
+            removedPaths.push(path.relative(projectRoot, candidate));
           }
         }
       }
     }
 
-    if (!skillPath || !fs.existsSync(skillPath)) {
+    if (removedPaths.length === 0) {
       return `## ❌ Not Found\nSkill '${identifier}' is not installed.`;
     }
 
+    // Unlock from lockfile
     try {
-      fs.rmSync(skillPath, { recursive: true, force: true });
-      return [
-        `## ✅ Removed ${identifier}`,
-        `- **Path:** ${relativePath}`,
-      ].join("\n");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return `## ❌ Removal Failed\n${message}`;
+      const lockManager = new SkillLockManager(projectRoot);
+      lockManager.unlockSkill(identifier);
+    } catch {
+      // Lockfile write failure should not block removal
     }
+
+    const lines: string[] = [
+      `## ✅ Removed ${identifier}`,
+      `- **Removed from:**`,
+    ];
+
+    for (const p of removedPaths) {
+      lines.push(`  - \`${p}\``);
+    }
+
+    return lines.join("\n");
   },
 });
