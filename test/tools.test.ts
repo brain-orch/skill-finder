@@ -1,29 +1,71 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { searchTool } from "../src/tools/search.js";
 import { installTool } from "../src/tools/install.js";
 import { listTool } from "../src/tools/list.js";
 import { removeTool } from "../src/tools/remove.js";
 import { infoTool } from "../src/tools/info.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 // Mock context for tool execution
 const mockCtx = {
   sessionID: "test-session",
   messageID: "test-message",
   agent: "test",
-  directory: "/test",
-  worktree: "/test",
+  directory: process.cwd(),
+  worktree: process.cwd(),
   abort: new AbortController().signal,
   metadata: () => {},
   ask: async () => {},
 };
 
+// Mock the registry instance to avoid real network calls
+vi.mock("../src/registry/instance.js", () => ({
+  marketplaceRegistry: {
+    searchAll: vi.fn(),
+    getMarketplace: vi.fn(),
+    listAvailable: vi.fn(() => ["lobehub", "skillssh", "agentskillsh"]),
+  },
+}));
+
+import { marketplaceRegistry } from "../src/registry/instance.js";
+
 describe("skill-finder tools", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   // ── search ────────────────────────────────────────────────────────
   describe("search tool", () => {
-    it("returns formatted results for valid query", async () => {
+    it("returns markdown results for valid query", async () => {
+      vi.mocked(marketplaceRegistry.searchAll).mockResolvedValue([
+        {
+          id: "lobehub:pdf-tools",
+          name: "pdf-tools",
+          description: "PDF processing toolkit",
+          marketplace: "lobehub",
+          category: "pdf",
+          triggers: ["pdf"],
+          installCount: 500,
+          stars: 4.5,
+          installCommand: "npx -y @lobehub/market-cli skills install pdf-tools --agent codex",
+          homepageUrl: "https://lobehub.com/skills/pdf-tools",
+          verified: true,
+        },
+      ]);
+
       const result = await searchTool.execute({ query: "pdf tools" }, mockCtx);
-      expect(result).toContain('Results for "pdf tools"');
-      expect(result).toContain("Found 0 skills");
+      expect(result).toContain('## Search Results for "pdf tools"');
+      expect(result).toContain("📦 lobehub");
+      expect(result).toContain("**pdf-tools**");
+      expect(result).toContain("Total: 1 skills found");
+    });
+
+    it("returns no results message when empty", async () => {
+      vi.mocked(marketplaceRegistry.searchAll).mockResolvedValue([]);
+      const result = await searchTool.execute({ query: "xyz" }, mockCtx);
+      expect(result).toContain("No matching skills found");
     });
 
     it("returns error for empty query", async () => {
@@ -50,18 +92,23 @@ describe("skill-finder tools", () => {
     });
 
     it("accepts valid limit", async () => {
+      vi.mocked(marketplaceRegistry.searchAll).mockResolvedValue([
+        {
+          id: "lobehub:test-skill",
+          name: "test-skill",
+          description: "A test skill",
+          marketplace: "lobehub",
+          category: null,
+          triggers: [],
+          installCount: 10,
+          stars: 3,
+          installCommand: "npx install test-skill",
+          homepageUrl: "https://example.com/test-skill",
+          verified: false,
+        },
+      ]);
       const result = await searchTool.execute({ query: "test", limit: 10 }, mockCtx);
       expect(result).toContain("showing top 10");
-    });
-
-    it("includes category filter in output when provided", async () => {
-      const result = await searchTool.execute({ query: "test", category: "pdf" }, mockCtx);
-      expect(result).toContain("Category filter: pdf");
-    });
-
-    it("does not include category filter when not provided", async () => {
-      const result = await searchTool.execute({ query: "test" }, mockCtx);
-      expect(result).not.toContain("Category filter");
     });
 
     it("toolDefinition has correct structure", () => {
@@ -78,26 +125,33 @@ describe("skill-finder tools", () => {
         marketplace: "lobehub",
         confirm: false,
       }, mockCtx);
-      expect(result).toContain("Installation requires confirmation");
+      expect(result).toContain("⚠️ Confirmation Required");
       expect(result).toContain("confirm=true");
     });
 
     it("returns success message with confirm=true", async () => {
+      vi.mocked(marketplaceRegistry.getMarketplace).mockReturnValue({
+        name: "lobehub",
+        install: vi.fn().mockResolvedValue({ path: "/tmp/skill", files: ["SKILL.md"] }),
+      } as any);
+
       const result = await installTool.execute({
         identifier: "pdf-tools",
         marketplace: "lobehub",
         confirm: true,
       }, mockCtx);
-      expect(result).toContain("Installing pdf-tools from lobehub");
-      expect(result).toContain("✅ Successfully installed");
+      expect(result).toContain("✅ Installed pdf-tools");
+      expect(result).toContain("**Marketplace:** lobehub");
     });
 
-    it("returns success message with default confirm (undefined)", async () => {
+    it("returns error for unknown marketplace", async () => {
+      vi.mocked(marketplaceRegistry.getMarketplace).mockReturnValue(undefined);
       const result = await installTool.execute({
         identifier: "pdf-tools",
-        marketplace: "lobehub",
+        marketplace: "unknown",
+        confirm: true,
       }, mockCtx);
-      expect(result).toContain("✅ Successfully installed");
+      expect(result).toContain("❌ Unknown Marketplace");
     });
 
     it("returns error for missing identifier", async () => {
@@ -126,25 +180,31 @@ describe("skill-finder tools", () => {
 
   // ── list ──────────────────────────────────────────────────────────
   describe("list tool", () => {
+    const tmpBase = path.join(os.tmpdir(), `skill-finder-test-${Date.now()}`);
+
+    afterEach(() => {
+      try {
+        fs.rmSync(tmpBase, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    });
+
     it("returns empty message when no skills cached", async () => {
-      const result = await listTool.execute({}, mockCtx);
-      expect(result).toContain("No cached skills found");
+      const result = await listTool.execute({}, { ...mockCtx, directory: tmpBase, worktree: tmpBase });
+      expect(result).toContain("No skills installed");
     });
 
-    it("includes marketplace filter when provided", async () => {
-      const result = await listTool.execute({ marketplace: "lobehub" }, mockCtx);
-      expect(result).toContain('marketplace="lobehub"');
-    });
+    it("lists installed skills from filesystem", async () => {
+      const skillDir = path.join(tmpBase, ".opencode", "skills", "lobehub", "pdf-tools");
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, "SKILL.md"), "# PDF Tools\n");
 
-    it("includes category filter when provided", async () => {
-      const result = await listTool.execute({ category: "pdf" }, mockCtx);
-      expect(result).toContain('category="pdf"');
-    });
-
-    it("includes both filters when both provided", async () => {
-      const result = await listTool.execute({ marketplace: "lobehub", category: "pdf" }, mockCtx);
-      expect(result).toContain('marketplace="lobehub"');
-      expect(result).toContain('category="pdf"');
+      const result = await listTool.execute({}, { ...mockCtx, directory: tmpBase, worktree: tmpBase });
+      expect(result).toContain("## Installed Skills");
+      expect(result).toContain("📦 lobehub");
+      expect(result).toContain("**pdf-tools**");
+      expect(result).toContain("Total: 1 skills installed");
     });
 
     it("toolDefinition has correct structure", () => {
@@ -155,9 +215,35 @@ describe("skill-finder tools", () => {
 
   // ── remove ────────────────────────────────────────────────────────
   describe("remove tool", () => {
+    const tmpBase = path.join(os.tmpdir(), `skill-finder-remove-${Date.now()}`);
+
+    afterEach(() => {
+      try {
+        fs.rmSync(tmpBase, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    });
+
     it("returns success message for valid identifier", async () => {
-      const result = await removeTool.execute({ identifier: "pdf-tools" }, mockCtx);
-      expect(result).toContain("✅ Removed pdf-tools from cache");
+      const skillDir = path.join(tmpBase, ".opencode", "skills", "lobehub", "pdf-tools");
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, "SKILL.md"), "# PDF Tools\n");
+
+      const result = await removeTool.execute(
+        { identifier: "lobehub:pdf-tools" },
+        { ...mockCtx, directory: tmpBase, worktree: tmpBase },
+      );
+      expect(result).toContain("✅ Removed lobehub:pdf-tools");
+      expect(fs.existsSync(skillDir)).toBe(false);
+    });
+
+    it("returns not found for non-existent skill", async () => {
+      const result = await removeTool.execute(
+        { identifier: "lobehub:nonexistent" },
+        { ...mockCtx, directory: tmpBase, worktree: tmpBase },
+      );
+      expect(result).toContain("❌ Not Found");
     });
 
     it("returns error for missing identifier", async () => {
@@ -180,8 +266,39 @@ describe("skill-finder tools", () => {
   // ── info ──────────────────────────────────────────────────────────
   describe("info tool", () => {
     it("returns not-found for unknown skill", async () => {
+      vi.mocked(marketplaceRegistry.getMarketplace).mockReturnValue(undefined);
+      vi.mocked(marketplaceRegistry.searchAll).mockResolvedValue([]);
+
       const result = await infoTool.execute({ identifier: "pdf-tools" }, mockCtx);
-      expect(result).toContain("❌ Skill 'pdf-tools' not found");
+      expect(result).toContain("❌ Skill Not Found");
+      expect(result).toContain("pdf-tools");
+    });
+
+    it("returns skill details when found", async () => {
+      const skill = {
+        id: "lobehub:pdf-tools",
+        name: "pdf-tools",
+        description: "PDF processing toolkit",
+        marketplace: "lobehub",
+        category: "pdf",
+        triggers: ["pdf"],
+        installCount: 500,
+        stars: 4.5,
+        installCommand: "npx -y @lobehub/market-cli skills install pdf-tools --agent codex",
+        homepageUrl: "https://lobehub.com/skills/pdf-tools",
+        verified: true,
+      };
+
+      vi.mocked(marketplaceRegistry.getMarketplace).mockReturnValue({
+        name: "lobehub",
+        getSkillInfo: vi.fn().mockResolvedValue(skill),
+      } as any);
+
+      const result = await infoTool.execute({ identifier: "lobehub:pdf-tools" }, mockCtx);
+      expect(result).toContain("## pdf-tools");
+      expect(result).toContain("**Marketplace**");
+      expect(result).toContain("lobehub");
+      expect(result).toContain("**Verified**");
     });
 
     it("returns error for missing identifier", async () => {

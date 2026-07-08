@@ -56,7 +56,7 @@ export class MockMarketplace implements SkillMarketplace {
 
     const files = ["SKILL.md"];
     for (const file of files) {
-      fs.writeFileSync(path.join(skillDir, file), `# ${skillName}\n`, "utf-8");
+      fs.writeFileSync(path.join(skillDir, file), `name: '${skillName}'\ndescription: 'Mock skill for ${skillName}'\ntags:\n  - test\n  - mock\n`, "utf-8");
     }
 
     return { path: skillDir, files };

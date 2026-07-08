@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
+import * as path from "node:path";
+import { marketplaceRegistry } from "../registry/instance.js";
+import { SKILLS_DIR } from "../constants.js";
 
 const installArgsSchema = z.object({
   identifier: z.string().describe("Skill identifier (required)"),
@@ -23,10 +26,26 @@ export const installTool = tool({
 
     const confirm = args.confirm ?? true;
     if (!confirm) {
-      return "Installation requires confirmation. Pass confirm=true to proceed.";
+      return "## ⚠️ Confirmation Required\nPass `confirm=true` to proceed with installation.";
     }
 
-    // Stub: return formatted placeholder response
-    return `Installing ${identifier} from ${marketplace}...\n✅ Successfully installed ${identifier} to ~/.opencode/skills/${identifier}`;
+    const adapter = marketplaceRegistry.getMarketplace(marketplace);
+    if (!adapter) {
+      return `## ❌ Unknown Marketplace\nMarketplace '${marketplace}' is not available. Available: ${marketplaceRegistry.listAvailable().join(", ")}`;
+    }
+
+    const targetDir = path.join(process.cwd(), SKILLS_DIR);
+    try {
+      const result = await adapter.install(identifier, targetDir);
+      return [
+        `## ✅ Installed ${identifier}`,
+        `- **Path:** ${result.path}`,
+        `- **Files:** ${result.files.join(", ")}`,
+        `- **Marketplace:** ${marketplace}`,
+      ].join("\n");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return `## ❌ Installation Failed\n${message}`;
+    }
   },
 });
