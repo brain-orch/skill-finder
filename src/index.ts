@@ -4,6 +4,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 import type { SkillFinderConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { PluginHooks } from "./plugin/hooks.js";
+import { ProjectScanner } from "./scanner/project-scanner.js";
 
 // Import tool definitions
 import { searchTool } from "./tools/search.js";
@@ -11,12 +12,20 @@ import { installTool } from "./tools/install.js";
 import { listTool } from "./tools/list.js";
 import { removeTool } from "./tools/remove.js";
 import { infoTool } from "./tools/info.js";
+import { checkUpdatesTool } from "./tools/check-updates.js";
+import { planTool } from "./tools/plan.js";
 
 // Plugin-level config reference, populated at init
 let pluginConfig: SkillFinderConfig;
 
+let scanner: ProjectScanner | null = null;
+
 export function getConfig(): SkillFinderConfig {
   return pluginConfig;
+}
+
+export function getScanner(): ProjectScanner | null {
+  return scanner;
 }
 
 /**
@@ -48,9 +57,18 @@ function readConfigFromFile(): Partial<SkillFinderConfig> | undefined {
 }
 
 export const SkillFinderPlugin: Plugin = async ({ project, client, $, directory, worktree }) => {
-  // Read config from opencode.json
   pluginConfig = loadConfig(readConfigFromFile());
   console.log("skill-finder: plugin initialized", JSON.stringify(pluginConfig));
+
+  scanner = new ProjectScanner();
+
+  // Fire-and-forget scan — don't block plugin init
+  scanner.scan(process.cwd()).then((result) => {
+    console.log(
+      "skill-finder: project scan complete",
+      result.detectedStacks.map((s) => s.name),
+    );
+  }).catch(() => {});
 
   const hooks = new PluginHooks();
 
@@ -67,6 +85,8 @@ export const SkillFinderPlugin: Plugin = async ({ project, client, $, directory,
       "skill-finder_list": listTool,
       "skill-finder_remove": removeTool,
       "skill-finder_info": infoTool,
+      "skill-finder_check-updates": checkUpdatesTool,
+      "skill-finder_plan": planTool,
     },
   };
 };
