@@ -207,6 +207,31 @@ describe("CacheManager", () => {
     // Should NOT appear in global cache
     expect(cache.isCached("test:json-fmt", "json-fmt")).toBe(false);
   });
+
+  /* 9 */
+  it("rejects identifiers whose skill segment escapes the cache directory", async () => {
+    await expect(
+      cache.download("test:../escape", marketplace),
+    ).rejects.toThrow("Invalid skill name");
+
+    expect(fs.existsSync(path.join(tmpDir, "escape"))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, "global-skills", "escape"))).toBe(
+      false,
+    );
+  });
+
+  /* 10 */
+  it("rejects unsafe cache lookup names before touching the filesystem", () => {
+    expect(() => cache.isCached("test:../escape", "../escape")).toThrow(
+      "Invalid skill name",
+    );
+    expect(() => cache.getSkillPath("test:../escape", "../escape")).toThrow(
+      "Invalid skill name",
+    );
+    expect(() => cache.remove("test:../escape", "../escape")).toThrow(
+      "Invalid skill name",
+    );
+  });
 });
 
 /* ------------------------------------------------------------------ */
