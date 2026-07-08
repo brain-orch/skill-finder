@@ -1,6 +1,7 @@
 import type { SkillSearchResult, MarketplaceConfig } from "../types.js";
 import { MarketRegistry } from "../registry/index.js";
 import { RelevanceRanker } from "./ranker.js";
+import { SemanticSearch, type SemSearchResult } from "./semantic.js";
 
 export interface SearchOptions {
   query: string;
@@ -13,6 +14,7 @@ export class SearchEngine {
   private registry: MarketRegistry;
   private ranker: RelevanceRanker;
   private config: MarketplaceConfig;
+  semanticSearch?: SemanticSearch;
 
   constructor(registry: MarketRegistry, config: MarketplaceConfig) {
     this.registry = registry;
@@ -67,4 +69,13 @@ export class SearchEngine {
       return [];
     }
   }
+
+  searchLocal(query: string): SemSearchResult[] {
+    if (!this.semanticSearch) {
+      return [];
+    }
+    return this.semanticSearch.search(query);
+  }
 }
+
+export { SemanticSearch, type SemSearchResult } from "./semantic.js";
