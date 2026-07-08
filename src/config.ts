@@ -12,7 +12,7 @@ export interface SkillFinderConfig {
 export const DEFAULT_CONFIG: SkillFinderConfig = {
   enabled: true,
   autoRecommend: true,
-  marketplaces: ["lobehub", "skillssh", "agentskillsh"],
+  marketplaces: ["lobehub", "skillssh", "agentskillsh", "skillsmp", "clawhub", "mcpservers", "awesomeskill"],
   cacheTtlHours: 24,
   maxCacheSizeMb: 500,
   preApprovedCategories: [],

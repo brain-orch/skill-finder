@@ -21,17 +21,18 @@ export class MarketRegistry {
 
   async searchAll(
     query: string,
-    options?: { limit?: number; signal?: AbortSignal },
+    options?: { limit?: number; signal?: AbortSignal; category?: string },
   ): Promise<SkillSearchResult[]> {
     if (!query) return [];
 
     const limit = options?.limit ?? DEFAULT_LIMIT;
     const signal = options?.signal;
+    const category = options?.category;
 
     const entries = Array.from(this.adapters.values());
 
     const results = await Promise.allSettled(
-      entries.map((adapter) => adapter.search(query, { limit, signal })),
+      entries.map((adapter) => adapter.search(query, { limit, signal, category })),
     );
 
     const merged: SkillSearchResult[] = [];
