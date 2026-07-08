@@ -105,10 +105,14 @@ SkillFinder enhances your OpenCode experience by:
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
-   ┌────▼────┐           ┌────▼────┐           ┌────▼────┐
-   │ LobeHub │           │Skills.sh│           │ ... 5   │
-   │  Skills │           │         │           │  more   │
-   └─────────┘           └─────────┘           └─────────┘
+   ┌────▼────┐           ┌────▼────┐           ┌────▼──────┐
+   │ LobeHub │           │Skills.sh│           │ SkillsMP  │
+   │  Skills │           │         │           │           │
+   └─────────┘           └─────────┘           └───────────┘
+   ┌────▼──────┐           ┌────▼──────┐           ┌────▼────────┐
+   │ ClawHub   │           │ MCP       │           │ AwesomeSkill│
+   │           │           │ Servers   │           │             │
+   └───────────┘           └───────────┘           └─────────────┘
 ```
 
 ## Configuration
@@ -159,7 +163,7 @@ Edit `~/.config/opencode/opencode.json`:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `autoRecommend` | boolean | `true` | Automatically recommend skills based on context |
-| `maxRecommendations` | number | `5` | Maximum skills to recommend per detection |
+| `maxRecommendations` | number | `3` | Maximum skills to recommend per detection |
 | `searchTimeoutMs` | number | `15000` | Timeout for marketplace searches |
 | `marketplaces` | string[] | all 7 | Enabled marketplaces |
 | `retryCount` | number | `2` | Retry count for failed searches |
@@ -206,11 +210,11 @@ Use these tools anytime:
 |-------------|-----|--------|
 | LobeHub Skills | https://lobehub.com/skills | ✅ Active |
 | Skills.sh | https://skills.sh | ✅ Active |
-| AgentSkills.sh | https://agentskills.sh | ✅ Active |
+| AgentSkills.sh | https://agentskills.sh | ❌ Unavailable (domain 404) |
 | SkillsMP | https://skillsmp.com | ✅ Active |
-| MCP Servers | https://mcpservers.ai | ✅ Active |
-| AwesomeSkill | https://awesomeskill.io | ✅ Active |
-| ClawHub | https://clawhub.dev | ✅ Active |
+| ClawHub | https://clawhub.ai | ✅ Active |
+| MCP Servers | https://registry.modelcontextprotocol.io | ✅ Active |
+| AwesomeSkill | https://awesomeskill.ai | ✅ Active |
 
 ## Development
 

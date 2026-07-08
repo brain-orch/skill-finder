@@ -5,3 +5,7 @@ node_modules/
 .codegraph/
 .omo/
 # dist/ is checked in so npm install from GitHub works without building
+
+# Dev/agent tooling (not for production)
+.opencode/
+.projectmem/
