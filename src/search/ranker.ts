@@ -1,4 +1,7 @@
 import type { SkillSearchResult } from "../types.js";
+import { QualityScorer } from "../scoring/quality.js";
+
+const qualityScorer = new QualityScorer();
 
 export class RelevanceRanker {
   rank(results: SkillSearchResult[], query: string, limit?: number): SkillSearchResult[] {
@@ -37,13 +40,13 @@ export class RelevanceRanker {
   ): number {
     const keywordScore = this.keywordMatchScore(result, tokens);
     const popularityScore = this.popularityScore(result, allResults);
-    const starsScore = this.starsScore(result);
     const verifiedScore = this.verifiedScore(result);
+    const qualityScore = qualityScorer.score(result);
 
     return (
       keywordScore * 0.6 +
-      popularityScore * 0.2 +
-      starsScore * 0.1 +
+      popularityScore * 0.1 +
+      qualityScore * 0.2 +
       verifiedScore * 0.1
     );
   }
