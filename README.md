@@ -94,6 +94,12 @@ SkillFinder enhances your OpenCode experience by:
 3. **Local Caching** — Stores skills locally with FTS5 full-text search indexing
 4. **Auto-Recommendation** — Proactively suggests skills when it detects task categories like PDF processing, git workflows, database operations, etc.
 
+## Features (v1.1.0)
+
+- **Quality Score** — Each skill scored 0.0 to 1.0 based on stars (35%), install count (35%), description quality (15%), and source reputation (15%). Source reputation tiers: official (1.0), verified (0.8), community (0.5), unknown (0.3).
+- **Security Validation** — Skill content is validated before installation for shell injection patterns (curl pipe to shell, backtick execution, command substitution), path traversal, base64-encoded payloads, and eval/exec patterns.
+- **Quality Score Display** — Each search result displays a quality score percentage alongside relevance, letting you quickly gauge skill reliability at a glance.
+
 ## Architecture
 
 ```
