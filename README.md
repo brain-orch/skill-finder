@@ -210,7 +210,7 @@ Use these tools anytime:
 |-------------|-----|--------|
 | LobeHub Skills | https://lobehub.com/skills | ✅ Active |
 | Skills.sh | https://skills.sh | ✅ Active |
-| AgentSkills.sh | https://agentskills.sh | ❌ Unavailable (domain 404) |
+| AgentSkills.sh | https://agentskill.sh | ✅ Active |
 | SkillsMP | https://skillsmp.com | ✅ Active |
 | ClawHub | https://clawhub.ai | ✅ Active |
 | MCP Servers | https://registry.modelcontextprotocol.io | ✅ Active |

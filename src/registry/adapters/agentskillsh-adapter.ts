@@ -1,0 +1,161 @@
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type { SkillSearchResult, SkillMarketplace } from "../../types.js";
+
+interface AgentSkill {
+  name: string;
+  slug: string;
+  owner: string;
+  description: string;
+  category?: string;
+  githubStars?: number;
+  installCount?: number;
+  contentQualityScore?: number;
+  securityScore?: number;
+  platforms?: string[];
+  avatarUrl?: string;
+  repositoryUrl?: string;
+  isVerified?: boolean;
+  isFeatured?: boolean;
+  tags?: string[];
+  skillTypes?: string[];
+}
+
+interface AgentSkillResponse {
+  data: AgentSkill[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+function mapSkill(skill: AgentSkill): SkillSearchResult {
+  return {
+    id: `agentskillsh:${skill.slug}`,
+    name: skill.name,
+    description: skill.description,
+    marketplace: "agentskillsh" as const,
+    category: skill.category || null,
+    triggers: skill.tags || skill.skillTypes || [],
+    installCount: skill.installCount || 0,
+    stars: skill.contentQualityScore || 0,
+    installCommand: `npx @agentskill.sh/cli@latest setup ${skill.owner}/${skill.name}`,
+    homepageUrl: `https://agentskill.sh/@${skill.slug}`,
+    verified: skill.isVerified || false,
+  };
+}
+
+export class AgentSkillsMarketplace implements SkillMarketplace {
+  readonly name = "agentskillsh" as const;
+
+  async search(
+    query: string,
+    options?: { category?: string; limit?: number; signal?: AbortSignal },
+  ): Promise<SkillSearchResult[]> {
+    if (!query || query.trim().length === 0) return [];
+
+    try {
+      const url = new URL("https://agentskill.sh/api/skills");
+      url.searchParams.set("search", query);
+      if (options?.limit) url.searchParams.set("limit", String(options.limit));
+      if (options?.category)
+        url.searchParams.set("category", options.category);
+
+      const response = await fetch(url.toString(), { signal: options?.signal });
+
+      if (!response.ok) return [];
+
+      const json = (await response.json()) as AgentSkillResponse;
+      return (json.data || []).map(mapSkill);
+    } catch {
+      return [];
+    }
+  }
+
+  async getSkillInfo(identifier: string): Promise<SkillSearchResult | null> {
+    try {
+      const slug = identifier.startsWith("agentskillsh:")
+        ? identifier.slice("agentskillsh:".length)
+        : identifier;
+
+      const results = await this.search(slug, { limit: 5 });
+      return results.length > 0 ? results[0] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async install(
+    identifier: string,
+    targetDir: string,
+  ): Promise<{ path: string; files: string[] }> {
+    const slug = identifier.startsWith("agentskillsh:")
+      ? identifier.slice("agentskillsh:".length)
+      : identifier;
+
+    // Parse owner/name from slug (format: "owner/name" or just "name")
+    let owner: string | undefined;
+    let name: string;
+
+    if (slug.includes("/")) {
+      const parts = slug.split("/", 2);
+      owner = parts[0];
+      name = parts[1];
+    } else {
+      name = slug;
+      // Look up owner via search
+      const info = await this.getSkillInfo(slug);
+      if (!info) {
+        throw new Error(`Skill not found: ${identifier}`);
+      }
+      // Extract owner from install command: "npx @agentskill.sh/cli@latest setup owner/name"
+      const match = info.installCommand.match(/setup\s+([^/]+)\//);
+      owner = match?.[1];
+    }
+
+    if (!owner) {
+      throw new Error(`Could not determine owner for skill: ${identifier}`);
+    }
+
+    const skillDir = path.join(targetDir, "agentskillsh", slug);
+    fs.mkdirSync(skillDir, { recursive: true });
+
+    const cmd = `npx @agentskill.sh/cli@latest setup ${owner}/${name}`;
+
+    try {
+      execSync(cmd, {
+        cwd: skillDir,
+        stdio: "pipe",
+        timeout: 30_000,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to install skill "${identifier}": ${message}`);
+    }
+
+    // Write SKILL.md with basic metadata
+    const skillMd = `# ${name}
+
+Owner: @${owner}
+Marketplace: agentskill.sh
+Installed via: skill-finder
+
+## Install Command
+
+\`\`\`bash
+${cmd}
+\`\`\`
+`;
+
+    const skillMdPath = path.join(skillDir, "SKILL.md");
+    fs.writeFileSync(skillMdPath, skillMd, "utf-8");
+
+    return { path: skillDir, files: ["SKILL.md"] };
+  }
+
+  isAvailable(): boolean {
+    return true;
+  }
+}
