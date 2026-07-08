@@ -444,7 +444,7 @@ describe("Edge cases: partial config merge", () => {
     const config = loadConfig(undefined);
     expect(config.enabled).toBe(true);
     expect(config.autoRecommend).toBe(true);
-    expect(config.marketplaces).toEqual(["lobehub", "skillssh", "agentskillsh"]);
+    expect(config.marketplaces).toEqual(["lobehub", "skillssh", "agentskillsh", "skillsmp", "clawhub", "mcpservers", "awesomeskill"]);
     expect(config.cacheTtlHours).toBe(24);
     expect(config.maxCacheSizeMb).toBe(500);
     expect(config.preApprovedCategories).toEqual([]);
@@ -474,7 +474,7 @@ describe("Edge cases: partial config merge", () => {
 
   it("loadConfig with empty marketplaces array falls back to defaults", () => {
     const config = loadConfig({ marketplaces: [] });
-    expect(config.marketplaces).toEqual(["lobehub", "skillssh", "agentskillsh"]);
+    expect(config.marketplaces).toEqual(["lobehub", "skillssh", "agentskillsh", "skillsmp", "clawhub", "mcpservers", "awesomeskill"]);
   });
 });
 
@@ -818,14 +818,14 @@ describe("Integration: activator with pre-approved and consent paths", () => {
 
     const sourceDir = path.join(tmpDirInner, "source", "pdf-skill");
     fs.mkdirSync(sourceDir, { recursive: true });
-    fs.writeFileSync(path.join(sourceDir, "SKILL.md"), "# pdf-skill\n", "utf-8");
+      fs.writeFileSync(path.join(sourceDir, "SKILL.md"), "name: 'pdf-skill'\ndescription: 'PDF processing skill'\ntags:\n  - pdf\n  - document\n", "utf-8");
 
-    const result = await activator.activate("pdf-skill", sourceDir, {
-      categories: ["pdf-processing"],
-    });
+      const result = await activator.activate("pdf-skill", sourceDir, {
+        categories: ["pdf-processing"],
+      });
 
-    expect(result.success).toBe(true);
-    expect(result.path).toContain("global");
+      expect(result.success).toBe(true);
+      expect(result.path).toContain("global");
     expect(result.requiresConsent).toBe(false);
   });
 
@@ -838,15 +838,15 @@ describe("Integration: activator with pre-approved and consent paths", () => {
 
     const sourceDir = path.join(tmpDirInner, "source", "custom-skill");
     fs.mkdirSync(sourceDir, { recursive: true });
-    fs.writeFileSync(path.join(sourceDir, "SKILL.md"), "# custom-skill\n", "utf-8");
+      fs.writeFileSync(path.join(sourceDir, "SKILL.md"), "name: 'custom-skill'\ndescription: 'Custom skill'\ntags:\n  - custom\n", "utf-8");
 
-    const result = await activator.activate("custom-skill", sourceDir, {
-      categories: ["unknown-category"],
-      userConsent: { approved: true, autoApproveFuture: false, showDetails: false },
-    });
+      const result = await activator.activate("custom-skill", sourceDir, {
+        categories: ["unknown-category"],
+        userConsent: { approved: true, autoApproveFuture: false, showDetails: false },
+      });
 
-    expect(result.success).toBe(true);
-    expect(result.path).toContain("project");
+      expect(result.success).toBe(true);
+      expect(result.path).toContain("project");
     expect(result.requiresConsent).toBe(false);
   });
 

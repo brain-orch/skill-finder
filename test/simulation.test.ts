@@ -178,7 +178,7 @@ describe("Real-case Scenario Simulations", () => {
   function createMockSkillFile(name: string): string {
     const dir = path.join(tmpDir, "sources", name);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "SKILL.md"), `# ${name}\n\nMock skill for ${name}.\n`, "utf-8");
+    fs.writeFileSync(path.join(dir, "SKILL.md"), `name: '${name}'\ndescription: 'Mock skill for ${name}'\ntags:\n  - test\n  - mock\n`, "utf-8");
     return dir;
   }
 
@@ -456,7 +456,7 @@ describe("Real-case Scenario Simulations", () => {
     fs.mkdirSync(downloadDir, { recursive: true });
     fs.writeFileSync(
       path.join(downloadDir, "SKILL.md"),
-      `# test-automation-suite\n\nExpert in Vitest and Playwright test automation.\n`,
+      `name: 'test-automation-suite'\ndescription: 'Expert in Vitest and Playwright test automation'\ntags:\n  - testing\n  - vitest\n  - playwright\n`,
       "utf-8",
     );
 
