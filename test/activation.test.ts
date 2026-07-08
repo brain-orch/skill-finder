@@ -22,7 +22,7 @@ function createSourceSkill(tmpDir: string, name: string): string {
   fs.mkdirSync(sourceDir, { recursive: true });
   fs.writeFileSync(
     path.join(sourceDir, "SKILL.md"),
-    `# ${name}\n\nSkill content for ${name}\n`,
+    `name: '${name}'\ndescription: 'Skill content for ${name}'\ntags:\n  - test\n  - mock\n`,
     "utf-8",
   );
   return sourceDir;
@@ -63,7 +63,7 @@ describe("SkillActivator", () => {
     // Verify file exists
     expect(fs.existsSync(result.path)).toBe(true);
     const content = fs.readFileSync(result.path, "utf-8");
-    expect(content).toContain("# test-skill");
+    expect(content).toContain("name: 'test-skill'");
   });
 
   /* 2 */

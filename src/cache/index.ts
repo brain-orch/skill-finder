@@ -8,6 +8,7 @@ import {
   getSkillNameFromIdentifier,
   validateSkillName,
 } from "../skill-name.js";
+import { validateSkillContent } from "../validation/validator.js";
 
 export interface CachedSkillInfo {
   id: string;
@@ -79,9 +80,20 @@ export class CacheManager {
         throw new Error(`SKILL.md not found in ${result.path}`);
       }
 
+      // Validate SKILL.md content before writing to destination
+      const rawContent = fs.readFileSync(tempSkillFile);
+      const validation = validateSkillContent(rawContent.toString(), {
+        name,
+        marketplace: typeof marketplace === 'string' ? marketplace : marketplace.name,
+      });
+      if (!validation.valid) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        throw new Error(`Invalid skill content: ${validation.errors.join(', ')}`);
+      }
+
       // 3. Atomic write: write to temp file then rename
       const tmpFile = path.join(destDir, `.${name}.tmp`);
-      const content = fs.readFileSync(tempSkillFile);
+      const content = rawContent;
       fs.writeFileSync(tmpFile, content);
       fs.renameSync(tmpFile, path.join(destDir, "SKILL.md"));
 

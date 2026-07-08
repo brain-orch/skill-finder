@@ -44,7 +44,7 @@ class TestMarketplace implements SkillMarketplace {
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(
       path.join(skillDir, "SKILL.md"),
-      `# ${name}\n\nSkill content for ${identifier}\n`,
+      `name: '${name}'\ndescription: 'Skill content for ${identifier}'\ntags:\n  - test\n  - mock\n`,
       "utf-8",
     );
 

@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { validateSkillName } from "./skill-name.js";
+import { validateSkillContent } from "./validation/validator.js";
 
 export interface ActivationConfig {
   globalSkillsDir: string; // ~/.config/opencode/skills/
@@ -207,6 +208,17 @@ export class SkillActivator {
   ): void {
     const safeSkillName = validateSkillName(skillName);
     const skillTargetDir = path.join(targetDir, safeSkillName);
+
+    // Validate source SKILL.md before creating target directory
+    const skillFile = path.join(sourcePath, 'SKILL.md');
+    if (fs.existsSync(skillFile)) {
+      const content = fs.readFileSync(skillFile, 'utf-8');
+      const result = validateSkillContent(content, { name: skillName, marketplace: 'local' });
+      if (!result.valid) {
+        throw new Error(`Invalid skill content: ${result.errors.join(', ')}`);
+      }
+    }
+
     fs.mkdirSync(skillTargetDir, { recursive: true });
 
     // Get all files in source directory
