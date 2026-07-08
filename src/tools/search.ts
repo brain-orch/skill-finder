@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
+import { marketplaceRegistry } from "../registry/instance.js";
+import { QualityScorer } from "../scoring/quality.js";
+
+const qualityScorer = new QualityScorer();
 
 const searchArgsSchema = z.object({
   query: z.string().describe("Search query (required)"),
@@ -21,9 +25,46 @@ export const searchTool = tool({
       return "❌ Error: limit must be between 1 and 50.";
     }
 
-    const categoryNote = args.category ? `\n   Category filter: ${args.category}` : "";
+    try {
+      const results = await marketplaceRegistry.searchAll(query, {
+        limit,
+        category: args.category,
+        signal: _ctx.abort,
+      });
 
-    // Stub: return formatted placeholder response
-    return `Results for "${query}":${categoryNote}\n   No matching skills found.\n\n   Found 0 skills (showing top ${limit})`;
+      if (results.length === 0) {
+        return "No matching skills found.";
+      }
+
+      // Group by marketplace
+      const byMarketplace = new Map<string, typeof results>();
+      for (const r of results) {
+        if (!byMarketplace.has(r.marketplace)) {
+          byMarketplace.set(r.marketplace, []);
+        }
+        byMarketplace.get(r.marketplace)!.push(r);
+      }
+
+      const lines: string[] = [`## Search Results for "${query}"`, ""];
+
+      for (const [marketplace, items] of byMarketplace) {
+        lines.push(`### 📦 ${marketplace} (${items.length} results)`);
+        for (const item of items) {
+          const stars = item.stars ? `⭐${item.stars}` : "⭐0";
+          const installs = item.installCount ? `${item.installCount} installs` : "0 installs";
+          lines.push(`- **${item.name}** — ${item.description} (${stars} · ${installs})`);
+          const qScore = qualityScorer.score(item);
+          lines.push(`  - Quality: ${Math.round(qScore * 100)}%`);
+          lines.push(`  - ID: \`${item.id}\` | [View](${item.homepageUrl})`);
+        }
+        lines.push("");
+      }
+
+      lines.push(`**Total: ${results.length} skills found** (showing top ${limit})`);
+
+      return lines.join("\n");
+    } catch {
+      return "Search failed. All marketplaces returned errors.";
+    }
   },
 });

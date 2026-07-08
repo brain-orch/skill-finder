@@ -3,6 +3,9 @@ import type { DetectedContext } from "./detector.js";
 import { SearchEngine } from "../search/index.js";
 import { SkillIndexer } from "../cache/indexer.js";
 import { MarketRegistry } from "../registry/index.js";
+import { QualityScorer } from "../scoring/quality.js";
+
+const qualityScorer = new QualityScorer();
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -295,29 +298,29 @@ export class SkillRecommender {
   ): number {
     let score = 0;
 
-    // Category match: +0.3
+    // Category match: +0.25
     if (skill.category) {
       const skillCat = skill.category.toLowerCase();
       for (const cat of categories) {
         if (skillCat === cat.toLowerCase()) {
-          score += 0.3;
+          score += 0.25;
           break;
         }
       }
     }
 
-    // Trigger match: +0.2 each (max 0.6)
+    // Trigger match: +0.15 each (max 0.45)
     let triggerBonus = 0;
     for (const trigger of skill.triggers) {
       const tLower = trigger.toLowerCase();
       for (const cat of categories) {
         if (tLower.includes(cat.toLowerCase()) || cat.toLowerCase().includes(tLower)) {
-          triggerBonus += 0.2;
+          triggerBonus += 0.15;
           break;
         }
       }
     }
-    score += Math.min(triggerBonus, 0.6);
+    score += Math.min(triggerBonus, 0.45);
 
     // Name/description keyword match: +0.1
     const nameLower = skill.name.toLowerCase();
@@ -330,10 +333,9 @@ export class SkillRecommender {
       }
     }
 
-    // Popularity score: 0–0.4 based on install count
-    // Normalized against a rough max (1000 installs → 0.4)
-    const popularity = Math.min(skill.installCount / 1000, 1) * 0.4;
-    score += popularity;
+    // Quality score: 0–0.2 based on quality score
+    const qualityBonus = qualityScorer.score(skill) * 0.2;  // max 0.2
+    score += qualityBonus;
 
     // Cap at 1.0
     return Math.min(Math.round(score * 100) / 100, 1.0);
@@ -371,9 +373,10 @@ export class SkillRecommender {
       }
     }
 
-    // Popularity
-    if (skill.installCount > 0) {
-      reasons.push(`Popular with ${skill.installCount.toLocaleString()} installs`);
+    // Quality score
+    const qScore = qualityScorer.score(skill);
+    if (qScore > 0.7) {
+      reasons.push(`Quality score: ${Math.round(qScore * 100)}%`);
     }
 
     // Verified
