@@ -125,4 +125,138 @@ describe("RelevanceRanker", () => {
     expect(ranked[0].verified).toBe(true);
     expect(ranked[1].verified).toBe(false);
   });
+
+  describe("freshness boost", () => {
+    it("boosts score by 0.1 for skills used within 7 days", () => {
+      const ranker = new RelevanceRanker();
+      const results = [
+        createMockResult({ id: "test:fresh", name: "fresh-skill", installCount: 100 }),
+        createMockResult({ id: "test:old", name: "old-skill", installCount: 100 }),
+      ];
+
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+      const freshnessData = new Map<string, string>([
+        ["test:fresh", oneDayAgo],
+      ]);
+
+      const ranked = ranker.rank(results, "fresh-skill", undefined, freshnessData);
+
+      expect(ranked[0].id).toBe("test:fresh");
+    });
+
+    it("boosts score by 0.05 for skills used within 30 days", () => {
+      const ranker = new RelevanceRanker();
+      const results = [
+        createMockResult({ id: "test:recent", name: "recent-skill", installCount: 100 }),
+        createMockResult({ id: "test:stale", name: "stale-skill", installCount: 100 }),
+      ];
+
+      const now = new Date();
+      const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000).toISOString();
+      const freshnessData = new Map<string, string>([
+        ["test:recent", fifteenDaysAgo],
+      ]);
+
+      const ranked = ranker.rank(results, "recent-skill", undefined, freshnessData);
+
+      expect(ranked[0].id).toBe("test:recent");
+    });
+
+    it("gives no boost for skills used more than 30 days ago", () => {
+      const ranker = new RelevanceRanker();
+      const results = [
+        createMockResult({ id: "test:ancient", name: "ancient-skill", installCount: 100 }),
+      ];
+
+      const now = new Date();
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const freshnessData = new Map<string, string>([
+        ["test:ancient", sixtyDaysAgo],
+      ]);
+
+      const ranked = ranker.rank(results, "ancient-skill", undefined, freshnessData);
+
+      expect(ranked[0].id).toBe("test:ancient");
+    });
+
+    it("works without freshness data (backwards compatible)", () => {
+      const ranker = new RelevanceRanker();
+      const results = [
+        createMockResult({ name: "skill-a", installCount: 100 }),
+        createMockResult({ name: "skill-b", installCount: 200 }),
+      ];
+
+      const ranked = ranker.rank(results, "skill");
+
+      expect(ranked).toHaveLength(2);
+    });
+  });
+
+  it("deduplicates same name from different marketplaces using quality score", () => {
+    const ranker = new RelevanceRanker();
+    const results = [
+      createMockResult({
+        name: "pdf-tools",
+        marketplace: "lobehub",
+        installCount: 500,
+        stars: 4,
+        description: "PDF processing tool",
+        triggers: ["pdf"],
+      }),
+      createMockResult({
+        name: "pdf-tools",
+        marketplace: "skillsmp",
+        installCount: 1000,
+        stars: 5,
+        description: "Advanced PDF toolkit with extraction and merging",
+        triggers: ["pdf", "extract", "merge"],
+      }),
+    ];
+
+    const ranked = ranker.rank(results, "pdf-tools");
+
+    expect(ranked.length).toBe(1);
+    expect(ranked[0].marketplace).toBe("skillsmp");
+  });
+
+  it("deduplicates same name from same marketplace using calculate score", () => {
+    const ranker = new RelevanceRanker();
+    const results = [
+      createMockResult({
+        name: "pdf-tools",
+        marketplace: "lobehub",
+        installCount: 100,
+        stars: 3,
+        description: "Basic PDF tool",
+        triggers: [],
+      }),
+      createMockResult({
+        name: "pdf-tools",
+        marketplace: "lobehub",
+        installCount: 500,
+        stars: 5,
+        description: "Advanced PDF toolkit",
+        triggers: ["pdf"],
+      }),
+    ];
+
+    const ranked = ranker.rank(results, "pdf-tools");
+
+    expect(ranked.length).toBe(1);
+    expect(ranked[0].installCount).toBe(500);
+  });
+
+  it("returns all results when no duplicates exist", () => {
+    const ranker = new RelevanceRanker();
+    const results = [
+      createMockResult({ name: "skill-a", marketplace: "lobehub" }),
+      createMockResult({ name: "skill-b", marketplace: "skillsmp" }),
+      createMockResult({ name: "skill-c", marketplace: "clawhub" }),
+    ];
+
+    const ranked = ranker.rank(results, "skill");
+
+    expect(ranked.length).toBe(3);
+  });
 });

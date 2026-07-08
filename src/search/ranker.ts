@@ -4,7 +4,12 @@ import { QualityScorer } from "../scoring/quality.js";
 const qualityScorer = new QualityScorer();
 
 export class RelevanceRanker {
-  rank(results: SkillSearchResult[], query: string, limit?: number): SkillSearchResult[] {
+  rank(
+    results: SkillSearchResult[],
+    query: string,
+    limit?: number,
+    freshnessData?: Map<string, string>,
+  ): SkillSearchResult[] {
     if (results.length === 0) return [];
 
     const tokens = query
@@ -12,25 +17,40 @@ export class RelevanceRanker {
       .split(/\s+/)
       .filter((t) => t.length > 0);
 
-    // Score each result
-    const scored = results.map((result) => ({
-      result,
-      score: this.calculateScore(result, tokens, results),
-    }));
+    const scored = results.map((result) => {
+      const baseScore = this.calculateScore(result, tokens, results);
+      const freshnessBoost = this.freshnessBoost(result.id, freshnessData);
+      return {
+        result,
+        score: baseScore + freshnessBoost,
+      };
+    });
 
-    // Deduplicate by normalized name
     const deduplicated = this.deduplicate(scored);
 
-    // Sort by score descending, then by installCount for ties
     deduplicated.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return b.result.installCount - a.result.installCount;
     });
 
-    // Apply limit
     const limited = limit !== undefined ? deduplicated.slice(0, limit) : deduplicated;
 
     return limited.map((item) => item.result);
+  }
+
+  private freshnessBoost(id: string, freshnessData?: Map<string, string>): number {
+    if (!freshnessData) return 0;
+
+    const lastUsed = freshnessData.get(id);
+    if (!lastUsed) return 0;
+
+    const lastUsedMs = new Date(lastUsed).getTime();
+    const nowMs = Date.now();
+    const ageDays = (nowMs - lastUsedMs) / (1000 * 60 * 60 * 24);
+
+    if (ageDays <= 7) return 0.1;
+    if (ageDays <= 30) return 0.05;
+    return 0;
   }
 
   private calculateScore(
@@ -115,14 +135,35 @@ export class RelevanceRanker {
 
     for (const item of scored) {
       const normalizedName = this.normalizeName(item.result.name);
-      const existing = map.get(normalizedName);
+      const marketplace = item.result.marketplace;
+      const key = `${normalizedName}::${marketplace}`;
+      const existing = map.get(key);
 
       if (!existing || item.score > existing.score) {
-        map.set(normalizedName, item);
+        map.set(key, item);
       }
     }
 
-    return Array.from(map.values());
+    // Cross-marketplace dedup: when same normalized name exists in multiple marketplaces,
+    // keep the one with higher quality score
+    const nameMap = new Map<string, { result: SkillSearchResult; score: number }>();
+    for (const item of map.values()) {
+      const normalizedName = this.normalizeName(item.result.name);
+      const existing = nameMap.get(normalizedName);
+
+      if (!existing) {
+        nameMap.set(normalizedName, item);
+      } else {
+        // Same name, different marketplace — use quality score as tiebreak
+        const qualityA = qualityScorer.score(existing.result);
+        const qualityB = qualityScorer.score(item.result);
+        if (qualityB > qualityA) {
+          nameMap.set(normalizedName, item);
+        }
+      }
+    }
+
+    return Array.from(nameMap.values());
   }
 
   private normalizeName(name: string): string {

@@ -463,6 +463,50 @@ describe("SkillIndexer", () => {
     const result = indexer.sanitizeFTS5("test ( ) value");
     expect(result).toBe('"test" "value"');
   });
+
+  /* 16 */
+  it("markUsed updates last_used and increments use_count", () => {
+    indexer.indexSkill(makeIndexedSkill({ id: "test:mark-used", name: "mark-used" }));
+
+    indexer.markUsed("test:mark-used");
+
+    const results = indexer.searchLocal("mark-used");
+    expect(results).toHaveLength(1);
+    expect(results[0].lastUsed).toBeTruthy();
+    expect(results[0].useCount).toBe(1);
+
+    indexer.markUsed("test:mark-used");
+    const results2 = indexer.searchLocal("mark-used");
+    expect(results2[0].useCount).toBe(2);
+  });
+
+  /* 17 */
+  it("markUsed is NOOP for unknown identifier", () => {
+    indexer.indexSkill(makeIndexedSkill({ id: "test:exists", name: "exists" }));
+
+    indexer.markUsed("test:nonexistent");
+
+    const results = indexer.searchLocal("exists");
+    expect(results).toHaveLength(1);
+    expect(results[0].useCount).toBe(0);
+  });
+
+  /* 18 */
+  it("getFreshness returns last_used for known identifiers", () => {
+    indexer.indexSkill(makeIndexedSkill({ id: "test:fresh", name: "fresh-skill" }));
+    indexer.markUsed("test:fresh");
+
+    const freshness = indexer.getFreshness(["test:fresh", "test:missing"]);
+    expect(freshness.size).toBe(1);
+    expect(freshness.has("test:fresh")).toBe(true);
+    expect(freshness.get("test:fresh")).toBeTruthy();
+  });
+
+  /* 19 */
+  it("getFreshness returns empty map for empty input", () => {
+    const freshness = indexer.getFreshness([]);
+    expect(freshness.size).toBe(0);
+  });
 });
 
 /* ------------------------------------------------------------------ */

@@ -118,6 +118,35 @@ export class SkillIndexer {
     }));
   }
 
+  markUsed(identifier: string): void {
+    if (!this.db) {
+      throw new Error("Database not initialized. Call init() first.");
+    }
+
+    const stmt = this.db.prepare(
+      "UPDATE skills SET last_used = datetime('now'), use_count = use_count + 1 WHERE id = ?",
+    );
+    stmt.run(identifier);
+  }
+
+  getFreshness(identifiers: string[]): Map<string, string> {
+    if (!this.db) {
+      throw new Error("Database not initialized. Call init() first.");
+    }
+
+    const map = new Map<string, string>();
+    if (identifiers.length === 0) return map;
+
+    const stmt = this.db.prepare("SELECT id, last_used FROM skills WHERE id = ?");
+    for (const id of identifiers) {
+      const row = stmt.get(id) as { id: string; last_used: string | null } | undefined;
+      if (row?.last_used) {
+        map.set(id, row.last_used);
+      }
+    }
+    return map;
+  }
+
   removeFromIndex(identifier: string): void {
     if (!this.db) {
       throw new Error("Database not initialized. Call init() first.");

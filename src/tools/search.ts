@@ -2,8 +2,15 @@ import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
 import { marketplaceRegistry } from "../registry/instance.js";
 import { QualityScorer } from "../scoring/quality.js";
+import type { SkillIndexer } from "../cache/indexer.js";
 
 const qualityScorer = new QualityScorer();
+
+let sharedIndexer: SkillIndexer | null = null;
+
+export function setSearchIndexer(indexer: SkillIndexer | null): void {
+  sharedIndexer = indexer;
+}
 
 const searchArgsSchema = z.object({
   query: z.string().describe("Search query (required)"),
@@ -34,6 +41,12 @@ export const searchTool = tool({
 
       if (results.length === 0) {
         return "No matching skills found.";
+      }
+
+      if (sharedIndexer) {
+        for (const result of results) {
+          sharedIndexer.markUsed(result.id);
+        }
       }
 
       // Group by marketplace
