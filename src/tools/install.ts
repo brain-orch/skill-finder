@@ -8,10 +8,12 @@ import { SkillLockManager } from "../cache/skill-lock.js";
 import {
   AGENT_TARGETS,
   detectActiveAgents,
+  getAllTargets,
+  probeAgentDirs,
   type AgentTarget,
 } from "../installer/agent-targets.js";
 
-const VALID_TARGETS = ["opencode", "claude", "cursor", "codex", "all", "auto"] as const;
+const VALID_TARGETS = ["opencode", "claude", "cursor", "codex", "all", "auto", "detect"] as const;
 
 const installArgsSchema = z.object({
   identifier: z.string().describe("Skill identifier (required)"),
@@ -20,13 +22,15 @@ const installArgsSchema = z.object({
   target: z
     .string()
     .default("opencode")
-    .describe("Agent target: opencode, claude, cursor, codex, all, auto (default: opencode)"),
+    .describe("Agent target: opencode, claude, cursor, codex, all, auto, detect (default: opencode)"),
 });
 
 function resolveTargets(
   target: string,
   projectRoot: string,
 ): AgentTarget[] {
+  const allTargets = getAllTargets();
+
   if (target === "all") {
     const active = detectActiveAgents(projectRoot);
     return active.length > 0 ? active : ["opencode"];
@@ -37,8 +41,19 @@ function resolveTargets(
     return active.length > 0 ? [active[0]] : ["opencode"];
   }
 
+  if (target === "detect") {
+    const detected = probeAgentDirs(projectRoot);
+    const targets: AgentTarget[] = [];
+    for (const agent of detected) {
+      if (allTargets[agent.name]) {
+        targets.push(agent.name as AgentTarget);
+      }
+    }
+    return targets.length > 0 ? targets : ["opencode"];
+  }
+
   const validTarget = target as AgentTarget;
-  if (AGENT_TARGETS[validTarget]) {
+  if (allTargets[validTarget]) {
     return [validTarget];
   }
 
@@ -102,7 +117,9 @@ export const installTool = tool({
       const installedTargets: string[] = [];
 
       for (const target of targets) {
-        const agentInfo = AGENT_TARGETS[target];
+        const allTargets = getAllTargets();
+        const agentInfo = allTargets[target];
+        if (!agentInfo) continue;
         const targetBaseDir = path.join(projectRoot, agentInfo.dir, marketplaceDir, skillName);
 
         // Only install if target directory exists
@@ -128,7 +145,8 @@ export const installTool = tool({
       }
 
       if (installedPaths.length === 0) {
-        return `## ⚠️ No Target Directories\nSkill downloaded but no agent target directories exist. Create one of: ${targets.map((t) => AGENT_TARGETS[t].dir).join(", ")}`;
+        const allTargets = getAllTargets();
+        return `## ⚠️ No Target Directories\nSkill downloaded but no agent target directories exist. Create one of: ${targets.map((t) => allTargets[t]?.dir ?? t).join(", ")}`;
       }
 
       // Lock with targets
@@ -140,9 +158,31 @@ export const installTool = tool({
         const content = fs.existsSync(skillFile)
           ? fs.readFileSync(skillFile, "utf-8")
           : JSON.stringify(result.files);
+        
+        // Get skill info to check for version (adapter may not provide version)
+        let version = "0.0.0";
+        let versionRange = "^0.0.0";
+        let changelog = "unknown";
+        let breaking = false;
+        let dependencies: string[] = [];
+        
+        try {
+          const skillInfo = await adapter.getSkillInfo(identifier);
+          if (skillInfo) {
+            // SkillSearchResult doesn't have version, so we default to "0.0.0"
+          }
+        } catch {
+          // Skill info fetch failure should not block installation
+        }
+        
         lockManager.lockSkill(identifier, content, {
           installedAt: new Date().toISOString(),
           marketplace,
+          version,
+          versionRange,
+          changelog,
+          breaking,
+          dependencies,
         }, installedTargets);
       } catch {
         // Lockfile write failure should not block installation

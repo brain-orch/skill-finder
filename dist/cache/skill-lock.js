@@ -33,10 +33,14 @@ export class SkillLockManager {
             identifier,
             installedAt: metadata.installedAt,
             contentHash: SkillLockManager.computeHash(content),
-            version: metadata.version,
+            version: metadata.version ?? "0.0.0",
             marketplace: metadata.marketplace,
             lastChecked: now,
             targets: mergedTargets,
+            versionRange: metadata.versionRange,
+            changelog: metadata.changelog,
+            breaking: metadata.breaking,
+            dependencies: metadata.dependencies,
         };
         this.writeLockfile(data);
     }
@@ -77,6 +81,7 @@ export class SkillLockManager {
             currentHash: oldHash,
             newHash: hasUpdate ? newHash : undefined,
             checkedAt: now,
+            breaking: locked.breaking,
         };
     }
     /**
@@ -97,6 +102,36 @@ export class SkillLockManager {
             const lastChecked = new Date(skill.lastChecked).getTime();
             return now - lastChecked > thresholdMs;
         });
+    }
+    /**
+     * Get version of a locked skill.
+     */
+    getSkillVersion(identifier) {
+        const data = this.readLockfile();
+        const skill = data.skills[identifier];
+        return skill?.version ?? null;
+    }
+    /**
+     * Get dependencies of a locked skill.
+     */
+    getDependencies(identifier) {
+        const data = this.readLockfile();
+        const skill = data.skills[identifier];
+        return skill?.dependencies ?? [];
+    }
+    /**
+     * Scan all locked skills and return status with breaking changes flagged.
+     */
+    async checkAll() {
+        const lockedSkills = this.getLockedSkills();
+        const now = new Date().toISOString();
+        return lockedSkills.map((skill) => ({
+            identifier: skill.identifier,
+            hasUpdate: false,
+            currentHash: skill.contentHash,
+            checkedAt: now,
+            breaking: skill.breaking,
+        }));
     }
     /**
      * Rebuild lockfile from filesystem by scanning installed skills

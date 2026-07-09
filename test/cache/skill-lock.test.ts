@@ -202,4 +202,135 @@ describe("SkillLockManager", () => {
     expect(result.hasUpdate).toBe(false);
     expect(result.currentHash).toBe("");
   });
+
+  it("lockSkill stores version and versionRange", () => {
+    manager.lockSkill("lobehub:test-skill", "content", {
+      installedAt: "2026-07-08T10:00:00Z",
+      version: "1.2.3",
+      versionRange: "^1.0.0",
+      changelog: "https://example.com/changelog",
+      breaking: false,
+      dependencies: ["lobehub:dep-skill"],
+      marketplace: "lobehub",
+    });
+
+    const skills = manager.getLockedSkills();
+    expect(skills).toHaveLength(1);
+    expect(skills[0].version).toBe("1.2.3");
+    expect(skills[0].versionRange).toBe("^1.0.0");
+    expect(skills[0].changelog).toBe("https://example.com/changelog");
+    expect(skills[0].breaking).toBe(false);
+    expect(skills[0].dependencies).toEqual(["lobehub:dep-skill"]);
+  });
+
+  it("readLockfile reads old format without new fields gracefully", () => {
+    const lockfilePath = path.join(tmpDir, ".opencode", "skill-finder-lock.json");
+    fs.mkdirSync(path.dirname(lockfilePath), { recursive: true });
+    
+    const oldData = {
+      version: 1,
+      skills: {
+        "lobehub:old-skill": {
+          identifier: "lobehub:old-skill",
+          installedAt: "2026-07-08T10:00:00Z",
+          contentHash: "sha256-abc123",
+          version: "1.0.0",
+          marketplace: "lobehub",
+          lastChecked: "2026-07-08T10:00:00Z",
+          targets: [".opencode/skills"],
+        },
+      },
+    };
+    fs.writeFileSync(lockfilePath, JSON.stringify(oldData, null, 2), "utf-8");
+
+    const skills = manager.getLockedSkills();
+    expect(skills).toHaveLength(1);
+    expect(skills[0].identifier).toBe("lobehub:old-skill");
+    expect(skills[0].versionRange).toBeUndefined();
+    expect(skills[0].changelog).toBeUndefined();
+    expect(skills[0].breaking).toBeUndefined();
+    expect(skills[0].dependencies).toBeUndefined();
+  });
+
+  it("getDependencies returns empty array for unknown skill", () => {
+    const deps = manager.getDependencies("unknown:missing");
+    expect(deps).toEqual([]);
+  });
+
+  it("getDependencies returns dependencies for known skill", () => {
+    manager.lockSkill("lobehub:test-skill", "content", {
+      installedAt: "2026-07-08T10:00:00Z",
+      dependencies: ["lobehub:dep1", "skillssh:dep2"],
+      marketplace: "lobehub",
+    });
+
+    const deps = manager.getDependencies("lobehub:test-skill");
+    expect(deps).toEqual(["lobehub:dep1", "skillssh:dep2"]);
+  });
+
+  it("getSkillVersion returns null for unknown skill", () => {
+    const version = manager.getSkillVersion("unknown:missing");
+    expect(version).toBeNull();
+  });
+
+  it("getSkillVersion returns version for known skill", () => {
+    manager.lockSkill("lobehub:test-skill", "content", {
+      installedAt: "2026-07-08T10:00:00Z",
+      version: "2.0.0",
+      marketplace: "lobehub",
+    });
+
+    const version = manager.getSkillVersion("lobehub:test-skill");
+    expect(version).toBe("2.0.0");
+  });
+
+  it("lockSkill defaults version to 0.0.0 when not provided", () => {
+    manager.lockSkill("lobehub:test-skill", "content", {
+      installedAt: "2026-07-08T10:00:00Z",
+      marketplace: "lobehub",
+    });
+
+    const skills = manager.getLockedSkills();
+    expect(skills[0].version).toBe("0.0.0");
+  });
+
+  it("lockSkill updates existing skill with new version fields", () => {
+    manager.lockSkill("lobehub:test-skill", "v1", {
+      installedAt: "2026-07-08T10:00:00Z",
+      marketplace: "lobehub",
+    });
+
+    manager.lockSkill("lobehub:test-skill", "v2", {
+      installedAt: "2026-07-08T12:00:00Z",
+      version: "2.0.0",
+      versionRange: ">=2.0.0",
+      breaking: true,
+      dependencies: ["lobehub:new-dep"],
+      marketplace: "lobehub",
+    });
+
+    const skills = manager.getLockedSkills();
+    expect(skills).toHaveLength(1);
+    expect(skills[0].version).toBe("2.0.0");
+    expect(skills[0].versionRange).toBe(">=2.0.0");
+    expect(skills[0].breaking).toBe(true);
+    expect(skills[0].dependencies).toEqual(["lobehub:new-dep"]);
+  });
+
+  it("removeSkill via unlockSkill clears version fields", () => {
+    manager.lockSkill("lobehub:test-skill", "content", {
+      installedAt: "2026-07-08T10:00:00Z",
+      version: "1.0.0",
+      versionRange: "^1.0.0",
+      dependencies: ["lobehub:dep"],
+      marketplace: "lobehub",
+    });
+
+    expect(manager.getLockedSkills()).toHaveLength(1);
+
+    manager.unlockSkill("lobehub:test-skill");
+    expect(manager.getLockedSkills()).toHaveLength(0);
+    expect(manager.getSkillVersion("lobehub:test-skill")).toBeNull();
+    expect(manager.getDependencies("lobehub:test-skill")).toEqual([]);
+  });
 });

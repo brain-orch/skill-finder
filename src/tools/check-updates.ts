@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
 import { SkillLockManager } from "../cache/skill-lock.js";
+import { ChangelogTracker } from "../cache/changelog-tracker.js";
 import { marketplaceRegistry } from "../registry/instance.js";
 
 const checkUpdatesArgsSchema = z.object({});
@@ -10,6 +11,7 @@ export const checkUpdatesTool = tool({
   args: checkUpdatesArgsSchema.shape,
   async execute(_args, ctx) {
     const lockManager = new SkillLockManager(ctx.directory || process.cwd());
+    const changelogTracker = new ChangelogTracker(ctx.directory || process.cwd());
     const lockedSkills = lockManager.getLockedSkills();
 
     if (lockedSkills.length === 0) {
@@ -19,6 +21,7 @@ export const checkUpdatesTool = tool({
     const lines: string[] = ["## 🔍 Update Check Results", ""];
 
     let hasAnyUpdates = false;
+    let hasBreakingChanges = false;
 
     for (const skill of lockedSkills) {
       const adapter = marketplaceRegistry.getMarketplace(skill.marketplace);
@@ -41,9 +44,15 @@ export const checkUpdatesTool = tool({
 
         if (result.hasUpdate) {
           hasAnyUpdates = true;
-          lines.push(`- **${skill.identifier}**: 🔄 update available`);
-          lines.push(`  - Old hash: \`${result.currentHash}\``);
-          lines.push(`  - New hash: \`${result.newHash}\``);
+          const currentVersion = skill.version ?? "unknown";
+          const newVersion = skill.version ?? "unknown";
+          const breaking = result.breaking ?? skill.breaking ?? false;
+          
+          if (breaking) {
+            hasBreakingChanges = true;
+          }
+          
+          lines.push(`- **${info.name}**: ${currentVersion} → ${newVersion}${breaking ? " ⚠️ BREAKING" : ""}`);
         } else {
           lines.push(`- **${skill.identifier}**: ✅ up to date`);
         }
@@ -54,6 +63,9 @@ export const checkUpdatesTool = tool({
 
     lines.push("");
     if (hasAnyUpdates) {
+      if (hasBreakingChanges) {
+        lines.push("**⚠️ Breaking changes detected:** Review updates carefully before installing.");
+      }
       lines.push("**Action needed:** Run `skill-finder_install` to update skills.");
     } else {
       lines.push("All tracked skills are up to date.");

@@ -229,7 +229,7 @@ describe("SkillPlanComposer", () => {
     });
 
     it("tool definition has correct structure", () => {
-      expect(planTool.description).toBe("Generate skill plan recommendations based on detected tech stack");
+      expect(planTool.description).toBe("Generate skill plan recommendations based on detected tech stack or specific plan key");
       expect(planTool.args).toBeDefined();
     });
   });

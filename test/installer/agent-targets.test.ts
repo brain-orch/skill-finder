@@ -16,6 +16,9 @@ import {
   detectActiveAgents,
   targetExists,
   getTargetPath,
+  loadConfigTargets,
+  getAllTargets,
+  probeAgentDirs,
 } from "../../src/installer/agent-targets.js";
 import { installTool } from "../../src/tools/install.js";
 import { removeTool } from "../../src/tools/remove.js";
@@ -321,5 +324,119 @@ describe("list tool with multiple targets", () => {
     const result = await listTool.execute({}, mockCtx(tmpDir));
 
     expect(result).toContain("No skills installed");
+  });
+});
+
+describe("configurable agent targets", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+    loadConfigTargets({});
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns built-in targets when no config targets", () => {
+    const targets = getAllTargets();
+    expect(targets.opencode).toBeDefined();
+    expect(targets.claude).toBeDefined();
+    expect(targets.cursor).toBeDefined();
+    expect(targets.codex).toBeDefined();
+    expect(targets.generic).toBeDefined();
+    expect(Object.keys(targets).length).toBe(5);
+  });
+
+  it("adds custom targets from config", () => {
+    loadConfigTargets({ agentTargets: { "team-agent": ".team/skills" } });
+    const targets = getAllTargets();
+    expect(targets["team-agent"]).toBeDefined();
+    expect(targets["team-agent"].dir).toBe(".team/skills");
+    expect(targets.opencode).toBeDefined();
+    expect(Object.keys(targets).length).toBe(6);
+  });
+
+  it("custom target overrides built-in with same name", () => {
+    loadConfigTargets({ agentTargets: { opencode: "custom/opencode/path" } });
+    const targets = getAllTargets();
+    expect(targets.opencode.dir).toBe("custom/opencode/path");
+    expect(targets.claude).toBeDefined();
+    expect(targets.cursor).toBeDefined();
+  });
+
+  it("detectActiveAgents includes config targets", () => {
+    loadConfigTargets({ agentTargets: { "team-agent": ".team/skills" } });
+    fs.mkdirSync(path.join(tmpDir, ".team", "skills"), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, ".opencode", "skills"), { recursive: true });
+
+    const active = detectActiveAgents(tmpDir);
+    expect(active).toContain("team-agent");
+    expect(active).toContain("opencode");
+  });
+
+  it("reset config targets clears custom targets", () => {
+    loadConfigTargets({ agentTargets: { "team-agent": ".team/skills" } });
+    let targets = getAllTargets();
+    expect(targets["team-agent"]).toBeDefined();
+
+    loadConfigTargets({});
+    targets = getAllTargets();
+    expect(targets["team-agent"]).toBeUndefined();
+    expect(Object.keys(targets).length).toBe(5);
+  });
+});
+
+describe("probeAgentDirs", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("detects project-level agent directories", () => {
+    fs.mkdirSync(path.join(tmpDir, ".opencode", "skills"), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, ".claude", "skills"), { recursive: true });
+
+    const detected = probeAgentDirs(tmpDir);
+    expect(detected.some((a) => a.name === "opencode")).toBe(true);
+    expect(detected.some((a) => a.name === "claude")).toBe(true);
+  });
+
+  it("returns empty array when no agent directories exist in project", () => {
+    const detected = probeAgentDirs(tmpDir);
+    const projectDetected = detected.filter((a) => a.source === "project");
+    expect(projectDetected).toEqual([]);
+  });
+
+  it("detects windsurf and github-agents directories", () => {
+    fs.mkdirSync(path.join(tmpDir, ".windsurf", "skills"), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, ".github", "agents"), { recursive: true });
+
+    const detected = probeAgentDirs(tmpDir);
+    expect(detected.some((a) => a.name === "windsurf")).toBe(true);
+    expect(detected.some((a) => a.name === "github-agents")).toBe(true);
+  });
+
+  it("sets correct confidence levels", () => {
+    fs.mkdirSync(path.join(tmpDir, ".opencode", "skills"), { recursive: true });
+
+    const detected = probeAgentDirs(tmpDir);
+    const opencode = detected.find((a) => a.name === "opencode");
+    expect(opencode).toBeDefined();
+    expect(opencode!.confidence).toBe("high");
+    expect(opencode!.source).toBe("project");
+  });
+
+  it("does not create directories that don't exist", () => {
+    const before = fs.readdirSync(tmpDir);
+    probeAgentDirs(tmpDir);
+    const after = fs.readdirSync(tmpDir);
+    expect(after.length).toBe(before.length);
   });
 });

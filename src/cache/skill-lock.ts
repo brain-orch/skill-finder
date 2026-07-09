@@ -11,6 +11,10 @@ export interface LockMetadata {
   installedAt: string; // ISO date
   version?: string; // version string if available
   marketplace: string;
+  versionRange?: string; // Semver range (e.g., "^1.0.0", ">=2.0.0 <3.0.0")
+  changelog?: string; // URL or "unknown"
+  breaking?: boolean; // Whether latest update is breaking
+  dependencies?: string[]; // Skill IDs this skill depends on
 }
 
 export interface LockedSkill {
@@ -21,6 +25,10 @@ export interface LockedSkill {
   marketplace: string;
   lastChecked: string; // ISO date
   targets: string[]; // Relative paths where skill is installed (e.g., [".opencode/skills", ".claude/skills"])
+  versionRange?: string; // Semver range (e.g., "^1.0.0", ">=2.0.0 <3.0.0")
+  changelog?: string; // URL or "unknown"
+  breaking?: boolean; // Whether latest update is breaking
+  dependencies?: string[]; // Skill IDs this skill depends on
 }
 
 export interface UpdateCheckResult {
@@ -29,6 +37,7 @@ export interface UpdateCheckResult {
   currentHash: string;
   newHash?: string;
   checkedAt: string;
+  breaking?: boolean;
 }
 
 interface LockfileData {
@@ -78,10 +87,14 @@ export class SkillLockManager {
       identifier,
       installedAt: metadata.installedAt,
       contentHash: SkillLockManager.computeHash(content),
-      version: metadata.version,
+      version: metadata.version ?? "0.0.0",
       marketplace: metadata.marketplace,
       lastChecked: now,
       targets: mergedTargets,
+      versionRange: metadata.versionRange,
+      changelog: metadata.changelog,
+      breaking: metadata.breaking,
+      dependencies: metadata.dependencies,
     };
 
     this.writeLockfile(data);
@@ -132,6 +145,7 @@ export class SkillLockManager {
       currentHash: oldHash,
       newHash: hasUpdate ? newHash : undefined,
       checkedAt: now,
+      breaking: locked.breaking,
     };
   }
 
@@ -155,6 +169,40 @@ export class SkillLockManager {
       const lastChecked = new Date(skill.lastChecked).getTime();
       return now - lastChecked > thresholdMs;
     });
+  }
+
+  /**
+   * Get version of a locked skill.
+   */
+  getSkillVersion(identifier: string): string | null {
+    const data = this.readLockfile();
+    const skill = data.skills[identifier];
+    return skill?.version ?? null;
+  }
+
+  /**
+   * Get dependencies of a locked skill.
+   */
+  getDependencies(identifier: string): string[] {
+    const data = this.readLockfile();
+    const skill = data.skills[identifier];
+    return skill?.dependencies ?? [];
+  }
+
+  /**
+   * Scan all locked skills and return status with breaking changes flagged.
+   */
+  async checkAll(): Promise<UpdateCheckResult[]> {
+    const lockedSkills = this.getLockedSkills();
+    const now = new Date().toISOString();
+
+    return lockedSkills.map((skill) => ({
+      identifier: skill.identifier,
+      hasUpdate: false,
+      currentHash: skill.contentHash,
+      checkedAt: now,
+      breaking: skill.breaking,
+    }));
   }
 
   /**

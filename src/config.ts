@@ -7,6 +7,11 @@ export interface SkillFinderConfig {
   preApprovedCategories: string[];
   showNotifications: boolean;
   maxRecommendations: number;
+  updateCheck?: {
+    enabled: boolean;
+    intervalHours: number;
+  };
+  agentTargets?: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: SkillFinderConfig = {
@@ -18,6 +23,11 @@ export const DEFAULT_CONFIG: SkillFinderConfig = {
   preApprovedCategories: [],
   showNotifications: true,
   maxRecommendations: 3,
+  updateCheck: {
+    enabled: true,
+    intervalHours: 24,
+  },
+  agentTargets: undefined,
 };
 
 function clamp(value: number, min: number, max: number, label: string): number {
@@ -48,10 +58,35 @@ function validateStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === "string");
 }
 
+function validateAgentTargets(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof key === "string" && typeof val === "string") {
+      result[key] = val;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinderConfig {
   if (!userConfig || typeof userConfig !== "object") {
     return { ...DEFAULT_CONFIG };
   }
+
+  const updateCheck = userConfig.updateCheck
+    ? {
+        enabled: typeof userConfig.updateCheck.enabled === "boolean" 
+          ? userConfig.updateCheck.enabled 
+          : DEFAULT_CONFIG.updateCheck?.enabled ?? true,
+        intervalHours: clamp(
+          userConfig.updateCheck.intervalHours as number,
+          1,
+          168,
+          "updateCheck.intervalHours",
+        ),
+      }
+    : DEFAULT_CONFIG.updateCheck;
 
   return {
     enabled: typeof userConfig.enabled === "boolean" ? userConfig.enabled : DEFAULT_CONFIG.enabled,
@@ -83,5 +118,9 @@ export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinder
       10,
       "maxRecommendations",
     ),
+    updateCheck,
+    agentTargets: userConfig.agentTargets && typeof userConfig.agentTargets === "object"
+      ? validateAgentTargets(userConfig.agentTargets)
+      : DEFAULT_CONFIG.agentTargets,
   };
 }

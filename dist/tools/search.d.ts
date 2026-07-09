@@ -1,6 +1,12 @@
 import { z } from "zod";
 import type { SkillIndexer } from "../cache/indexer.js";
+import type { ScanResult } from "../scanner/project-scanner.js";
 export declare function setSearchIndexer(indexer: SkillIndexer | null): void;
+/**
+ * Provide the latest project scan result so the search tool can
+ * auto-expand queries with detected stack names.
+ */
+export declare function setScanResult(result: ScanResult | null): void;
 export declare const searchTool: {
     description: string;
     args: {
