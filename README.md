@@ -71,6 +71,59 @@ npm run build
 npm run postinstall
 ```
 
+### Interactive Platform Selection
+
+When you run any SkillFinder installer, it **auto-detects your agentic coding platform**
+or asks you to choose:
+
+1. **Auto-detection** — Detects OpenCode/Claude Code/Cursor by checking common config directories
+2. **Confirmation** — If a single platform is detected, confirms with you before proceeding
+3. **Manual selection** — If ambiguous or nothing is detected, shows a numbered menu
+
+| Platform | Config Directory |
+|----------|-----------------|
+| OpenCode | `~/.config/opencode/` |
+| Claude Code | `~/.claude/` |
+| Cursor | `~/.cursor/` |
+
+### Non-Interactive Mode (CI/Automation)
+
+Use the `--install-target` flag to skip the interactive prompt:
+
+```bash
+# Direct Node.js (recommended for CI)
+node scripts/postinstall.mjs --install-target=opencode
+
+# PowerShell
+.\install.ps1 -InstallTarget opencode
+
+# bash
+bash install.sh --install-target claude
+
+# npm (via env var — --install-target is used instead of --platform to avoid npm config collision)
+SKILLFINDER_PLATFORM=opencode npm install -g opencode-skill-finder
+```
+
+> **Note:** `--install-target` is the canonical flag name. The `--platform` name is NOT used because npm reserves `--platform` for its own optional dependency filtering, which would strip it from `process.argv` in lifecycle scripts. Use `SKILLFINDER_PLATFORM` env var instead when running via `npm install`.
+
+### Install Behavior by Context
+
+| Context | Behavior |
+|---------|----------|
+| **Terminal** (`bash install.sh`, `.\install.ps1`) | Interactive prompts work normally |
+| **Pipe** (`curl | sh`, `iwr | iex`) | Auto-detects platform → falls back to OpenCode (no hang) |
+| **npm postinstall** (lifecycle script) | Auto-detects → falls back to OpenCode (no TTY available) |
+| **`--install-target` flag** | Installs for specified platform, no prompts |
+| **`SKILLFINDER_PLATFORM` env var** | Same as `--install-target`, for npm lifecycle use |
+
+### Supported Platforms
+
+| Platform | Config Directory | Status |
+|----------|-----------------|--------|
+| **OpenCode** | `~/.config/opencode/` | ✅ Stable |
+| **Claude Code** | `~/.claude/` | ✅ Stable |
+| **Cursor** | `~/.cursor/` | ⚠️ Experimental — config format unverified |
+
 ## Upgrade
 
 How to update SkillFinder to the latest version:
