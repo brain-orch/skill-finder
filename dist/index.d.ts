@@ -1,17 +1,8 @@
-import type { SkillSearchResult, MarketplaceConfig } from "../types.js";
-import { MarketRegistry } from "../registry/index.js";
-export interface SearchOptions {
-    query: string;
-    category?: string;
-    limit?: number;
-    timeoutMs?: number;
-}
-export declare class SearchEngine {
-    private registry;
-    private ranker;
-    private config;
-    constructor(registry: MarketRegistry, config: MarketplaceConfig);
-    search(options: SearchOptions): Promise<SkillSearchResult[]>;
-    searchAllMarketplaces(options: SearchOptions): Promise<SkillSearchResult[]>;
-}
+import type { Plugin } from "@opencode-ai/plugin";
+import type { SkillFinderConfig } from "./config.js";
+import { ProjectScanner } from "./scanner/project-scanner.js";
+export declare function getConfig(): SkillFinderConfig;
+export declare function getScanner(): ProjectScanner | null;
+export declare const SkillFinderPlugin: Plugin;
+export default SkillFinderPlugin;
 //# sourceMappingURL=index.d.ts.map
