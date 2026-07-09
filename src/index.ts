@@ -7,7 +7,7 @@ import { PluginHooks } from "./plugin/hooks.js";
 import { ProjectScanner } from "./scanner/project-scanner.js";
 
 // Import tool definitions
-import { searchTool } from "./tools/search.js";
+import { searchTool, setScanResult } from "./tools/search.js";
 import { installTool } from "./tools/install.js";
 import { listTool } from "./tools/list.js";
 import { removeTool } from "./tools/remove.js";
@@ -64,6 +64,7 @@ export const SkillFinderPlugin: Plugin = async ({ project, client, $, directory,
 
   // Fire-and-forget scan — don't block plugin init
   scanner.scan(process.cwd()).then((result) => {
+    setScanResult(result);
     console.log(
       "skill-finder: project scan complete",
       result.detectedStacks.map((s) => s.name),

@@ -3,6 +3,7 @@ import { tool } from "@opencode-ai/plugin";
 import { marketplaceRegistry } from "../registry/instance.js";
 import { QualityScorer } from "../scoring/quality.js";
 import type { SkillIndexer } from "../cache/indexer.js";
+import type { ScanResult } from "../scanner/project-scanner.js";
 
 const qualityScorer = new QualityScorer();
 
@@ -10,6 +11,16 @@ let sharedIndexer: SkillIndexer | null = null;
 
 export function setSearchIndexer(indexer: SkillIndexer | null): void {
   sharedIndexer = indexer;
+}
+
+let sharedScanResult: ScanResult | null = null;
+
+/**
+ * Provide the latest project scan result so the search tool can
+ * auto-expand queries with detected stack names.
+ */
+export function setScanResult(result: ScanResult | null): void {
+  sharedScanResult = result;
 }
 
 const searchArgsSchema = z.object({
@@ -32,11 +43,33 @@ export const searchTool = tool({
       return "❌ Error: limit must be between 1 and 50.";
     }
 
+    // Build search queries: original + detected stack names from project scan
+    const queries: string[] = [query];
+    if (sharedScanResult?.detectedStacks?.length) {
+      for (const stack of sharedScanResult.detectedStacks) {
+        if (!queries.includes(stack.name)) {
+          queries.push(stack.name);
+        }
+      }
+    }
+
     try {
-      const results = await marketplaceRegistry.searchAll(query, {
-        limit,
-        category: args.category,
-        signal: _ctx.abort,
+      const allResults: Awaited<ReturnType<typeof marketplaceRegistry.searchAll>> = [];
+      for (const q of queries) {
+        const results = await marketplaceRegistry.searchAll(q, {
+          limit,
+          category: args.category,
+          signal: _ctx.abort,
+        });
+        allResults.push(...results);
+      }
+
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const results = allResults.filter((r) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
       });
 
       if (results.length === 0) {
