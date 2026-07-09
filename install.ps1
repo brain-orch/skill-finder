@@ -3,8 +3,12 @@
 .SYNOPSIS
     One-click installer for SkillFinder OpenCode Plugin
 .DESCRIPTION
-    Installs the SkillFinder plugin globally in OpenCode's config directory.
-    Registers the plugin in opencode.json and injects instructions into AGENTS.md.
+    Installs the SkillFinder plugin for the selected platform's config directory.
+    Registers the plugin in the platform config and injects instructions into AGENTS.md.
+    Supported platforms: opencode, claude, cursor.
+.PARAMETER InstallTarget
+    Target platform for SkillFinder installation. Valid values: opencode, claude, cursor.
+    If omitted, auto-detection or interactive menu is used.
 .LINK
     https://github.com/brainorch/skill-finder
 .EXAMPLE
@@ -14,7 +18,7 @@
 #Requires -Version 7.0
 
 [CmdletBinding()]
-param()
+param([string]$InstallTarget = "")
 
 $ErrorActionPreference = "Stop"
 
@@ -51,6 +55,42 @@ Plugin options live in `~/.config/opencode/opencode.json` under the `"plugin"` a
 '@
 
 # ============================================================================
+# Platform Profiles
+# ============================================================================
+$PLATFORM_PROFILES = @{
+    opencode = @{
+        name      = "OpenCode"
+        configDir = "$env:USERPROFILE\.config\opencode"
+        configFile = "opencode.json"
+        configFormat = @{ plugin = @("skill-finder") }
+        pluginDir = "$env:USERPROFILE\.config\opencode\plugins\skill-finder"
+        agentsFile = "AGENTS.md"
+        probePaths = @(".opencode\skills", ".opencode")
+        detectPriority = 1
+    }
+    claude = @{
+        name      = "Claude Code"
+        configDir = "$env:USERPROFILE\.claude"
+        configFile = "claude.json"
+        configFormat = @{ plugins = @("skill-finder") }
+        pluginDir = "$env:USERPROFILE\.claude\plugins\skill-finder"
+        agentsFile = "AGENTS.md"
+        probePaths = @(".claude\skills", ".claude")
+        detectPriority = 2
+    }
+    cursor = @{
+        name      = "Cursor"
+        configDir = "$env:USERPROFILE\.cursor"
+        configFile = "opencode.json"
+        configFormat = @{ plugin = @("skill-finder") }
+        pluginDir = "$env:USERPROFILE\.cursor\extensions\skill-finder"
+        agentsFile = "AGENTS.md"
+        probePaths = @(".cursor\skills", ".cursor")
+        detectPriority = 3
+    }
+}
+
+# ============================================================================
 # Helper Functions
 # ============================================================================
 function Write-Step {
@@ -71,6 +111,38 @@ function Write-Warn {
 function Write-Fail {
     param([string]$Message)
     Write-Host "    [ERROR] $Message" -ForegroundColor Red
+}
+
+function Detect-Platforms {
+    $detected = @()
+    foreach ($id in $PLATFORM_PROFILES.Keys) {
+        $profile = $PLATFORM_PROFILES[$id]
+        foreach ($probePath in $profile.probePaths) {
+            $fullPath = Join-Path $env:USERPROFILE $probePath
+            if (Test-Path $fullPath) {
+                $detected += $id
+                break
+            }
+        }
+    }
+    return $detected
+}
+
+function Show-PlatformMenu {
+    param([string]$Title = "Select a platform")
+    Write-Host "  $Title" -ForegroundColor Cyan
+    $i = 1
+    $sorted = $PLATFORM_PROFILES.GetEnumerator() | Sort-Object { $_.Value.detectPriority }
+    $choices = @()
+    foreach ($entry in $sorted) {
+        Write-Host "    $i) $($entry.Value.name)"
+        $choices += $entry.Key
+        $i++
+    }
+    do {
+        $input = Read-Host "  Enter number (1-$($choices.Length))"
+    } while ($input -lt 1 -or $input -gt $choices.Length)
+    return $choices[$input - 1]
 }
 
 # ============================================================================
@@ -100,12 +172,79 @@ if (-not $npmCmd) {
 Write-Success "npm found"
 
 # ============================================================================
+# Step 1b: Platform Detection
+# ============================================================================
+Write-Step "Platform detection..."
+
+$selectedProfile = $null
+$selectedPlatformName = $null
+
+if ($InstallTarget -and $InstallTarget.Length -gt 0) {
+    # User specified a platform via parameter
+    $targetLower = $InstallTarget.ToLower()
+    if ($PLATFORM_PROFILES.ContainsKey($targetLower)) {
+        $selectedProfile = $PLATFORM_PROFILES[$targetLower]
+        $selectedPlatformName = $selectedProfile.name
+    } else {
+        Write-Fail "Unsupported platform: '$InstallTarget'"
+        Write-Host "  Supported platforms: opencode, claude, cursor" -ForegroundColor Yellow
+        exit 1
+    }
+} else {
+    # Auto-detect platforms
+    $detected = Detect-Platforms
+    
+    if ($detected.Count -eq 0) {
+        # No platforms detected — show interactive menu
+        $selectedPlatformKey = Show-PlatformMenu -Title "No platforms detected. Select a platform to install for:"
+        $selectedProfile = $PLATFORM_PROFILES[$selectedPlatformKey]
+        $selectedPlatformName = $selectedProfile.name
+    } elseif ($detected.Count -eq 1) {
+        # One platform detected — confirm with user
+        $detectedId = $detected[0]
+        $detectedProfile = $PLATFORM_PROFILES[$detectedId]
+        $detectedName = $detectedProfile.name
+        Write-Success "Detected: $detectedName"
+        $response = Read-Host "  Install SkillFinder for $detectedName? [Y]es / [N]o / [S]elect different"
+        $response = $response.Trim().ToUpper()
+        
+        if ($response -eq "N" -or $response -eq "NO") {
+            Write-Host "  Installation cancelled." -ForegroundColor Yellow
+            exit 0
+        } elseif ($response -eq "S" -or $response -eq "SELECT") {
+            $selectedPlatformKey = Show-PlatformMenu -Title "Select a platform"
+            $selectedProfile = $PLATFORM_PROFILES[$selectedPlatformKey]
+            $selectedPlatformName = $selectedProfile.name
+        } else {
+            $selectedProfile = $detectedProfile
+            $selectedPlatformName = $detectedName
+        }
+    } else {
+        # Multiple platforms detected — show numbered list
+        Write-Host "  Multiple platforms detected:" -ForegroundColor Cyan
+        $i = 1
+        foreach ($id in $detected) {
+            Write-Host "    $i) $($PLATFORM_PROFILES[$id].name)"
+            $i++
+        }
+        do {
+            $choice = Read-Host "  Enter number (1-$($detected.Count))"
+        } while ($choice -lt 1 -or $choice -gt $detected.Count)
+        $selectedId = $detected[$choice - 1]
+        $selectedProfile = $PLATFORM_PROFILES[$selectedId]
+        $selectedPlatformName = $selectedProfile.name
+    }
+}
+
+Write-Success "Selected platform: $selectedPlatformName"
+
+# ============================================================================
 # Step 2: Determine Install Paths
 # ============================================================================
 Write-Step "Determining install paths..."
 
-$configDir = Join-Path $env:USERPROFILE ".config\opencode"
-$pluginDir = Join-Path $configDir "plugins\skill-finder"
+$configDir = $selectedProfile.configDir
+$pluginDir = $selectedProfile.pluginDir
 $distDir   = Join-Path $pluginDir "dist"
 
 Write-Success "Config dir:  $configDir"
@@ -260,35 +399,38 @@ try {
 }
 
 # ============================================================================
-# Step 6: Register in opencode.json
+# Step 6: Register in config file
 # ============================================================================
-Write-Step "Registering plugin in opencode.json..."
+Write-Step "Registering plugin in $($selectedProfile.configFile)..."
 
-$opencodeJsonPath = Join-Path $configDir "opencode.json"
+$opencodeJsonPath = Join-Path $selectedProfile.configDir $selectedProfile.configFile
 $configObj = $null
 
 if (Test-Path $opencodeJsonPath) {
     try {
         $rawJson = Get-Content -Path $opencodeJsonPath -Raw
         $configObj = $rawJson | ConvertFrom-Json
-        Write-Success "Read existing opencode.json"
+        Write-Success "Read existing $($selectedProfile.configFile)"
     } catch {
-        Write-Warn "Could not parse opencode.json — will create a new one"
+        Write-Warn "Could not parse $($selectedProfile.configFile) — will create a new one"
         $configObj = [PSCustomObject]@{}
     }
 } else {
     $configObj = [PSCustomObject]@{}
-    Write-Warn "opencode.json not found — will create a new one"
+    Write-Warn "$($selectedProfile.configFile) not found — will create a new one"
 }
 
+# Determine the correct property name from profile config format
+$configPropName = if ($selectedProfile.configFormat.PSObject.Properties.Name -contains "plugin") { "plugin" } else { "plugins" }
+
 # Ensure plugin array exists
-if (-not ($configObj.PSObject.Properties.Name -contains "plugin")) {
-    $configObj | Add-Member -NotePropertyName "plugin" -NotePropertyValue @()
-    Write-Success "Created 'plugin' array"
+if (-not ($configObj.PSObject.Properties.Name -contains $configPropName)) {
+    $configObj | Add-Member -NotePropertyName $configPropName -NotePropertyValue @()
+    Write-Success "Created '$configPropName' array"
 }
 
 # Check if skill-finder is already registered
-$pluginArray = @($configObj.plugin)
+$pluginArray = @($configObj.$configPropName)
 $isRegistered = $false
 foreach ($p in $pluginArray) {
     if ($p -eq "skill-finder") {
@@ -299,23 +441,23 @@ foreach ($p in $pluginArray) {
 
 if (-not $isRegistered) {
     $pluginArray += "skill-finder"
-    $configObj.plugin = $pluginArray
-    Write-Success "Added 'skill-finder' to plugin array"
+    $configObj.$configPropName = $pluginArray
+    Write-Success "Added 'skill-finder' to $configPropName array"
 } else {
     Write-Success "'skill-finder' already registered"
 }
 
 # Write back — ensure config directory exists
-New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+New-Item -ItemType Directory -Path $selectedProfile.configDir -Force | Out-Null
 $configObj | ConvertTo-Json -Depth 10 | Set-Content -Path $opencodeJsonPath -Encoding UTF8
-Write-Success "Saved opencode.json"
+Write-Success "Saved $($selectedProfile.configFile)"
 
 # ============================================================================
 # Step 7: Inject into AGENTS.md
 # ============================================================================
 Write-Step "Updating AGENTS.md..."
 
-$agentsMdPath = Join-Path $configDir "AGENTS.md"
+$agentsMdPath = Join-Path $selectedProfile.configDir $selectedProfile.agentsFile
 $marker = "<!-- skill-finder -->"
 
 if (Test-Path $agentsMdPath) {
@@ -343,16 +485,17 @@ Write-Host "============================================================" -Foreg
 Write-Host "  SkillFinder Plugin — Installation Complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Installed to:    $pluginDir"
-Write-Host "  Config file:     $opencodeJsonPath"
-Write-Host "  AGENTS.md:       $agentsMdPath"
+Write-Host "  Platform:       $selectedPlatformName"
+Write-Host "  Installed to:   $pluginDir"
+Write-Host "  Config file:    $opencodeJsonPath"
+Write-Host "  AGENTS.md:      $agentsMdPath"
 Write-Host ""
 Write-Host "  What was done:" -ForegroundColor Cyan
 Write-Host "    [1] Plugin files downloaded and installed"
 Write-Host "    [2] npm dependencies installed"
-Write-Host "    [3] Plugin registered in opencode.json"
+Write-Host "    [3] Plugin registered in $($selectedProfile.configFile)"
 Write-Host "    [4] Instructions injected into AGENTS.md"
 Write-Host ""
-Write-Host "  Next step: Restart OpenCode to activate the plugin." -ForegroundColor Yellow
+Write-Host "  Next step: Restart $($selectedPlatformName) to activate the plugin." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Green
