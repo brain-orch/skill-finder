@@ -11,6 +11,7 @@ export interface SkillFinderConfig {
     enabled: boolean;
     intervalHours: number;
   };
+  agentTargets?: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: SkillFinderConfig = {
@@ -26,6 +27,7 @@ export const DEFAULT_CONFIG: SkillFinderConfig = {
     enabled: true,
     intervalHours: 24,
   },
+  agentTargets: undefined,
 };
 
 function clamp(value: number, min: number, max: number, label: string): number {
@@ -54,6 +56,17 @@ function validateMarketplaces(marketplaces: unknown): string[] {
 function validateStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === "string");
+}
+
+function validateAgentTargets(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof key === "string" && typeof val === "string") {
+      result[key] = val;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinderConfig {
@@ -106,5 +119,8 @@ export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinder
       "maxRecommendations",
     ),
     updateCheck,
+    agentTargets: userConfig.agentTargets && typeof userConfig.agentTargets === "object"
+      ? validateAgentTargets(userConfig.agentTargets)
+      : DEFAULT_CONFIG.agentTargets,
   };
 }
