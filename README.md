@@ -89,36 +89,42 @@ How to update SkillFinder to the latest version:
 
 SkillFinder enhances your OpenCode experience by:
 
-1. **Context Detection** — Watches your messages, tool calls, and file extensions to understand what you're working on
-2. **Marketplace Search** — Searches 7 skill marketplaces in parallel for relevant tools
-3. **Local Caching** — Stores skills locally with FTS5 full-text search indexing
-4. **Auto-Recommendation** — Proactively suggests skills when it detects task categories like PDF processing, git workflows, database operations, etc.
+1. **Intent-Based Search** — Parses natural language queries with category expansion and scanner-aware context
+2. **Trust Scoring** — A-F trust grades with deep security analysis and visible badges
+3. **Version Management** — Lockfile version pinning, changelog tracking, smart update notifications
+4. **Multi-Marketplace Aggregation** — Searches 7 marketplaces with dedup and category grouping
+5. **Plan Sharing** — Export/import skill collections as JSON with local plan registry
 
-## Features (v1.1.0)
+## Features (v2.0.0)
 
 - **Quality Score** — Each skill scored 0.0 to 1.0 based on stars (35%), install count (35%), description quality (15%), and source reputation (15%). Source reputation tiers: official (1.0), verified (0.8), community (0.5), unknown (0.3).
 - **Security Validation** — Skill content is validated before installation for shell injection patterns (curl pipe to shell, backtick execution, command substitution), path traversal, base64-encoded payloads, and eval/exec patterns.
 - **Quality Score Display** — Each search result displays a quality score percentage alongside relevance, letting you quickly gauge skill reliability at a glance.
+- **Intent-Based Search** — Natural language queries parsed into structured search with automatic category expansion. Search understands "pdf extract text" → searches pdf-processing + document categories with synonyms.
+- **Scanner-Aware Search** — Detected project stacks (React, Prisma, etc.) are automatically fed as expanded search queries for contextually relevant results.
+- **Cross-Marketplace Aggregator** — Results from all 7 marketplaces are deduplicated and grouped by category, keeping the highest-quality skill per name.
+- **Trust Score (A-F Grade)** — Each skill gets a trust grade: A (Trusted), B (Reliable), C (Caution), D/F (Review Required). Formula: security audit 40% + quality score 30% + source reputation 20% + verified badge 10%.
+- **Security Auditor** — Deep static analysis with numeric score (0-100) and severity rating. Checks: shell injection, path traversal, base64 payloads, obfuscated URLs.
+- **Trust & Security Badges** — Search results display trust grade + security badges at a glance. "✅ Fully Trusted" when grade A + security clean.
+- **Version Locking** — Lockfile enhanced with version pinning, semver ranges, and dependency tracking. Backward compatible with existing lockfiles.
+- **Changelog Tracker** — Tracks skill version changes with breaking change detection. Stored in `.opencode/skill-finder-changelog.json`.
+- **Smart Update System** — `checkAll()` scans locked skills for updates with breaking change warnings. Configurable auto-check via `updateCheck` setting.
+- **Dynamic Agent Targets** — Configure custom install directories via `opencode.json`. Supports any agent directory, overrides built-in targets.
+- **Agent Detection** — `--detect` flag probes common agent directories (`.opencode/skills`, `.claude/skills`, `.cursor/skills`, `.windsurf/skills`, `.github/agents`).
+- **Plan Sharing** — Export/import skill plans as JSON via `export-plan` and `import-plan` tools. Plan registry at `.opencode/skill-finder-plans/` with `list-plans` tool.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SkillFinder Plugin                        │
-├─────────────────────────────────────────────────────────────┤
-│  Task Detector → Recommender → Marketplace Registry → Cache │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-   ┌────▼────┐           ┌────▼────┐           ┌────▼──────┐
-   │ LobeHub │           │Skills.sh│           │ SkillsMP  │
-   │  Skills │           │         │           │           │
-   └─────────┘           └─────────┘           └───────────┘
-   ┌────▼──────┐           ┌────▼──────┐           ┌────▼────────┐
-   │ ClawHub   │           │ MCP       │           │ AwesomeSkill│
-   │           │           │ Servers   │           │             │
-   └───────────┘           └───────────┘           └─────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        SkillFinder v2.0                          │
+├──────────────────────────────────────────────────────────────────┤
+│  Intent Parser → Search Aggregator → Trust Scorer → Marketplaces │
+│       ↑                    ↕                          ↓          │
+│  Scanner───────────→ Changelog Tracker ←────────── Cache/Lock    │
+│       ↓                                                          │
+│  Plan Registry ───→ Plan Serializer ───→ Share/Export            │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Configuration
@@ -174,6 +180,9 @@ Edit `~/.config/opencode/opencode.json`:
 | `marketplaces` | string[] | all 7 | Enabled marketplaces |
 | `retryCount` | number | `2` | Retry count for failed searches |
 | `retryBackoffMs` | number | `1000` | Exponential backoff base |
+| `agentTargets` | object | `{}` | Custom agent install targets (name → path mappings) |
+| `updateCheck.enabled` | boolean | `true` | Enable automatic update checking |
+| `updateCheck.intervalHours` | number | `24` | Hours between update checks |
 
 ## Usage
 
@@ -208,6 +217,21 @@ Use these tools anytime:
 - **Remove a skill:**
   ```
   skill-finder_remove identifier="lobehub:pdf-tools"
+  ```
+
+- **Export a plan:**
+  ```
+  skill-finder_export-plan key="my-stack"
+  ```
+
+- **Import a plan:**
+  ```
+  skill-finder_import-plan json='{...}'
+  ```
+
+- **List saved plans:**
+  ```
+  skill-finder_list-plans
   ```
 
 ## Marketplaces
