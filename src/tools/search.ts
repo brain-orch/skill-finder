@@ -2,10 +2,14 @@ import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
 import { marketplaceRegistry } from "../registry/instance.js";
 import { QualityScorer } from "../scoring/quality.js";
+import { TrustScorer } from "../scoring/trust-scorer.js";
+import { SecurityAuditor } from "../validation/security-auditor.js";
 import type { SkillIndexer } from "../cache/indexer.js";
 import type { ScanResult } from "../scanner/project-scanner.js";
 
 const qualityScorer = new QualityScorer();
+const trustScorer = new TrustScorer();
+const securityAuditor = new SecurityAuditor();
 
 let sharedIndexer: SkillIndexer | null = null;
 
@@ -98,9 +102,21 @@ export const searchTool = tool({
         for (const item of items) {
           const stars = item.stars ? `⭐${item.stars}` : "⭐0";
           const installs = item.installCount ? `${item.installCount} installs` : "0 installs";
-          lines.push(`- **${item.name}** — ${item.description} (${stars} · ${installs})`);
+          
+          const securityResult = securityAuditor.audit(item);
+          const trustResult = trustScorer.score(item, securityResult.score);
+          const hasContent = item.description || item.installCommand;
+          const securityBadge = hasContent ? `🔒 ${securityResult.severity}` : "🔒 not scanned";
+          const trustBadge = `🛡️ Grade ${trustResult.grade}`;
+          
+          let prefix = "";
+          if (trustResult.grade === "A" && securityResult.severity === "clean") {
+            prefix = "✅ Fully Trusted ";
+          }
+          
+          lines.push(`- ${prefix}**${item.name}** — ${item.description} (${stars} · ${trustBadge} · ${securityBadge})`);
           const qScore = qualityScorer.score(item);
-          lines.push(`  - Quality: ${Math.round(qScore * 100)}%`);
+          lines.push(`  - Quality: ${Math.round(qScore * 100)}% | Trust: ${trustResult.label}`);
           lines.push(`  - ID: \`${item.id}\` | [View](${item.homepageUrl})`);
         }
         lines.push("");

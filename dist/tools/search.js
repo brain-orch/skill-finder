@@ -2,10 +2,22 @@ import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
 import { marketplaceRegistry } from "../registry/instance.js";
 import { QualityScorer } from "../scoring/quality.js";
+import { TrustScorer } from "../scoring/trust-scorer.js";
+import { SecurityAuditor } from "../validation/security-auditor.js";
 const qualityScorer = new QualityScorer();
+const trustScorer = new TrustScorer();
+const securityAuditor = new SecurityAuditor();
 let sharedIndexer = null;
 export function setSearchIndexer(indexer) {
     sharedIndexer = indexer;
+}
+let sharedScanResult = null;
+/**
+ * Provide the latest project scan result so the search tool can
+ * auto-expand queries with detected stack names.
+ */
+export function setScanResult(result) {
+    sharedScanResult = result;
 }
 const searchArgsSchema = z.object({
     query: z.string().describe("Search query (required)"),
@@ -24,11 +36,32 @@ export const searchTool = tool({
         if (limit < 1 || limit > 50) {
             return "❌ Error: limit must be between 1 and 50.";
         }
+        // Build search queries: original + detected stack names from project scan
+        const queries = [query];
+        if (sharedScanResult?.detectedStacks?.length) {
+            for (const stack of sharedScanResult.detectedStacks) {
+                if (!queries.includes(stack.name)) {
+                    queries.push(stack.name);
+                }
+            }
+        }
         try {
-            const results = await marketplaceRegistry.searchAll(query, {
-                limit,
-                category: args.category,
-                signal: _ctx.abort,
+            const allResults = [];
+            for (const q of queries) {
+                const results = await marketplaceRegistry.searchAll(q, {
+                    limit,
+                    category: args.category,
+                    signal: _ctx.abort,
+                });
+                allResults.push(...results);
+            }
+            // Deduplicate by id
+            const seen = new Set();
+            const results = allResults.filter((r) => {
+                if (seen.has(r.id))
+                    return false;
+                seen.add(r.id);
+                return true;
             });
             if (results.length === 0) {
                 return "No matching skills found.";
@@ -52,9 +85,18 @@ export const searchTool = tool({
                 for (const item of items) {
                     const stars = item.stars ? `⭐${item.stars}` : "⭐0";
                     const installs = item.installCount ? `${item.installCount} installs` : "0 installs";
-                    lines.push(`- **${item.name}** — ${item.description} (${stars} · ${installs})`);
+                    const securityResult = securityAuditor.audit(item);
+                    const trustResult = trustScorer.score(item, securityResult.score);
+                    const hasContent = item.description || item.installCommand;
+                    const securityBadge = hasContent ? `🔒 ${securityResult.severity}` : "🔒 not scanned";
+                    const trustBadge = `🛡️ Grade ${trustResult.grade}`;
+                    let prefix = "";
+                    if (trustResult.grade === "A" && securityResult.severity === "clean") {
+                        prefix = "✅ Fully Trusted ";
+                    }
+                    lines.push(`- ${prefix}**${item.name}** — ${item.description} (${stars} · ${trustBadge} · ${securityBadge})`);
                     const qScore = qualityScorer.score(item);
-                    lines.push(`  - Quality: ${Math.round(qScore * 100)}%`);
+                    lines.push(`  - Quality: ${Math.round(qScore * 100)}% | Trust: ${trustResult.label}`);
                     lines.push(`  - ID: \`${item.id}\` | [View](${item.homepageUrl})`);
                 }
                 lines.push("");
