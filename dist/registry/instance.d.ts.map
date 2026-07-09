@@ -1,0 +1,1 @@
+{"version":3,"file":"instance.d.ts","sourceRoot":"","sources":["../../src/registry/instance.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,MAAM,YAAY,CAAC;AAQ5C,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,aAAa,CAAC;AAErD,QAAA,MAAM,MAAM,EAAE,iBAKb,CAAC;AAEF,QAAA,MAAM,QAAQ,gBAA6B,CAAC;AAS5C,OAAO,EAAE,QAAQ,IAAI,mBAAmB,EAAE,CAAC;AAC3C,OAAO,EAAE,MAAM,IAAI,wBAAwB,EAAE,CAAC"}

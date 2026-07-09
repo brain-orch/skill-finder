@@ -130,18 +130,29 @@ describe("skill-finder tools", () => {
     });
 
     it("returns success message with confirm=true", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tools-install-test-"));
+      const skillsDir = path.join(tmpDir, ".opencode", "skills");
+      fs.mkdirSync(skillsDir, { recursive: true });
+
       vi.mocked(marketplaceRegistry.getMarketplace).mockReturnValue({
         name: "lobehub",
-        install: vi.fn().mockResolvedValue({ path: "/tmp/skill", files: ["SKILL.md"] }),
+        install: vi.fn().mockImplementation(async (_id: string, targetDir: string) => {
+          const skillDir = path.join(targetDir, "lobehub", "pdf-tools");
+          fs.mkdirSync(skillDir, { recursive: true });
+          fs.writeFileSync(path.join(skillDir, "SKILL.md"), "# PDF Tools\n");
+          return { path: skillDir, files: ["SKILL.md"] };
+        }),
       } as any);
 
       const result = await installTool.execute({
         identifier: "pdf-tools",
         marketplace: "lobehub",
         confirm: true,
-      }, mockCtx);
+      }, { ...mockCtx, directory: tmpDir, worktree: tmpDir });
       expect(result).toContain("✅ Installed pdf-tools");
       expect(result).toContain("**Marketplace:** lobehub");
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
     it("returns error for unknown marketplace", async () => {
@@ -202,8 +213,8 @@ describe("skill-finder tools", () => {
 
       const result = await listTool.execute({}, { ...mockCtx, directory: tmpBase, worktree: tmpBase });
       expect(result).toContain("## Installed Skills");
-      expect(result).toContain("📦 lobehub");
-      expect(result).toContain("**pdf-tools**");
+      expect(result).toContain("opencode");
+      expect(result).toContain("**lobehub:pdf-tools**");
       expect(result).toContain("Total: 1 skills installed");
     });
 

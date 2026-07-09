@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { validateSkillName } from "./skill-name.js";
 import { validateSkillContent } from "./validation/validator.js";
+import { SkillLockManager } from "./cache/skill-lock.js";
 
 export interface ActivationConfig {
   globalSkillsDir: string; // ~/.config/opencode/skills/
@@ -77,6 +78,8 @@ export class SkillActivator {
       const targetDir = this.config.projectSkillsDir;
       this.placeSkillFiles(safeSkillName, sourcePath, targetDir);
       const skillPath = path.join(targetDir, safeSkillName, "SKILL.md");
+      this.lockInstalledSkill(safeSkillName, skillPath);
+
       return {
         success: true,
         skillName: safeSkillName,
@@ -94,6 +97,8 @@ export class SkillActivator {
       const targetDir = this.config.globalSkillsDir;
       this.placeSkillFiles(safeSkillName, sourcePath, targetDir);
       const skillPath = path.join(targetDir, safeSkillName, "SKILL.md");
+      this.lockInstalledSkill(safeSkillName, skillPath);
+
       return {
         success: true,
         skillName: safeSkillName,
@@ -232,6 +237,20 @@ export class SkillActivator {
     } else if (fs.existsSync(sourcePath)) {
       // Source is a single file (e.g., SKILL.md)
       fs.copyFileSync(sourcePath, path.join(skillTargetDir, "SKILL.md"));
+    }
+  }
+
+  private lockInstalledSkill(skillName: string, skillPath: string): void {
+    try {
+      if (!fs.existsSync(skillPath)) return;
+      const content = fs.readFileSync(skillPath, "utf-8");
+      const lockManager = new SkillLockManager();
+      lockManager.lockSkill(skillName, content, {
+        installedAt: new Date().toISOString(),
+        marketplace: "unknown",
+      });
+    } catch {
+      // Lockfile write failure should not block activation
     }
   }
 
