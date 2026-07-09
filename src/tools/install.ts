@@ -140,9 +140,31 @@ export const installTool = tool({
         const content = fs.existsSync(skillFile)
           ? fs.readFileSync(skillFile, "utf-8")
           : JSON.stringify(result.files);
+        
+        // Get skill info to check for version (adapter may not provide version)
+        let version = "0.0.0";
+        let versionRange = "^0.0.0";
+        let changelog = "unknown";
+        let breaking = false;
+        let dependencies: string[] = [];
+        
+        try {
+          const skillInfo = await adapter.getSkillInfo(identifier);
+          if (skillInfo) {
+            // SkillSearchResult doesn't have version, so we default to "0.0.0"
+          }
+        } catch {
+          // Skill info fetch failure should not block installation
+        }
+        
         lockManager.lockSkill(identifier, content, {
           installedAt: new Date().toISOString(),
           marketplace,
+          version,
+          versionRange,
+          changelog,
+          breaking,
+          dependencies,
         }, installedTargets);
       } catch {
         // Lockfile write failure should not block installation

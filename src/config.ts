@@ -7,6 +7,10 @@ export interface SkillFinderConfig {
   preApprovedCategories: string[];
   showNotifications: boolean;
   maxRecommendations: number;
+  updateCheck?: {
+    enabled: boolean;
+    intervalHours: number;
+  };
 }
 
 export const DEFAULT_CONFIG: SkillFinderConfig = {
@@ -18,6 +22,10 @@ export const DEFAULT_CONFIG: SkillFinderConfig = {
   preApprovedCategories: [],
   showNotifications: true,
   maxRecommendations: 3,
+  updateCheck: {
+    enabled: true,
+    intervalHours: 24,
+  },
 };
 
 function clamp(value: number, min: number, max: number, label: string): number {
@@ -53,6 +61,20 @@ export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinder
     return { ...DEFAULT_CONFIG };
   }
 
+  const updateCheck = userConfig.updateCheck
+    ? {
+        enabled: typeof userConfig.updateCheck.enabled === "boolean" 
+          ? userConfig.updateCheck.enabled 
+          : DEFAULT_CONFIG.updateCheck?.enabled ?? true,
+        intervalHours: clamp(
+          userConfig.updateCheck.intervalHours as number,
+          1,
+          168,
+          "updateCheck.intervalHours",
+        ),
+      }
+    : DEFAULT_CONFIG.updateCheck;
+
   return {
     enabled: typeof userConfig.enabled === "boolean" ? userConfig.enabled : DEFAULT_CONFIG.enabled,
     autoRecommend:
@@ -83,5 +105,6 @@ export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinder
       10,
       "maxRecommendations",
     ),
+    updateCheck,
   };
 }
