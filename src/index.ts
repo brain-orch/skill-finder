@@ -13,7 +13,8 @@ import { listTool } from "./tools/list.js";
 import { removeTool } from "./tools/remove.js";
 import { infoTool } from "./tools/info.js";
 import { checkUpdatesTool } from "./tools/check-updates.js";
-import { planTool } from "./tools/plan.js";
+import { planTool, listPlansTool } from "./tools/plan.js";
+import { exportPlanTool, importPlanTool } from "./tools/plan-share.js";
 
 // Plugin-level config reference, populated at init
 let pluginConfig: SkillFinderConfig;
@@ -88,6 +89,9 @@ export const SkillFinderPlugin: Plugin = async ({ project, client, $, directory,
       "skill-finder_info": infoTool,
       "skill-finder_check-updates": checkUpdatesTool,
       "skill-finder_plan": planTool,
+      "skill-finder_list-plans": listPlansTool,
+      "skill-finder_export-plan": exportPlanTool,
+      "skill-finder_import-plan": importPlanTool,
     },
   };
 };

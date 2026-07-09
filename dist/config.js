@@ -7,6 +7,11 @@ export const DEFAULT_CONFIG = {
     preApprovedCategories: [],
     showNotifications: true,
     maxRecommendations: 3,
+    updateCheck: {
+        enabled: true,
+        intervalHours: 24,
+    },
+    agentTargets: undefined,
 };
 function clamp(value, min, max, label) {
     if (typeof value !== "number" || isNaN(value)) {
@@ -34,10 +39,29 @@ function validateStringArray(value) {
         return [];
     return value.filter((v) => typeof v === "string");
 }
+function validateAgentTargets(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+        return undefined;
+    const result = {};
+    for (const [key, val] of Object.entries(value)) {
+        if (typeof key === "string" && typeof val === "string") {
+            result[key] = val;
+        }
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+}
 export function loadConfig(userConfig) {
     if (!userConfig || typeof userConfig !== "object") {
         return { ...DEFAULT_CONFIG };
     }
+    const updateCheck = userConfig.updateCheck
+        ? {
+            enabled: typeof userConfig.updateCheck.enabled === "boolean"
+                ? userConfig.updateCheck.enabled
+                : DEFAULT_CONFIG.updateCheck?.enabled ?? true,
+            intervalHours: clamp(userConfig.updateCheck.intervalHours, 1, 168, "updateCheck.intervalHours"),
+        }
+        : DEFAULT_CONFIG.updateCheck;
     return {
         enabled: typeof userConfig.enabled === "boolean" ? userConfig.enabled : DEFAULT_CONFIG.enabled,
         autoRecommend: typeof userConfig.autoRecommend === "boolean"
@@ -51,6 +75,10 @@ export function loadConfig(userConfig) {
             ? userConfig.showNotifications
             : DEFAULT_CONFIG.showNotifications,
         maxRecommendations: clamp(userConfig.maxRecommendations, 1, 10, "maxRecommendations"),
+        updateCheck,
+        agentTargets: userConfig.agentTargets && typeof userConfig.agentTargets === "object"
+            ? validateAgentTargets(userConfig.agentTargets)
+            : DEFAULT_CONFIG.agentTargets,
     };
 }
 //# sourceMappingURL=config.js.map

@@ -4,13 +4,14 @@ import { loadConfig } from "./config.js";
 import { PluginHooks } from "./plugin/hooks.js";
 import { ProjectScanner } from "./scanner/project-scanner.js";
 // Import tool definitions
-import { searchTool } from "./tools/search.js";
+import { searchTool, setScanResult } from "./tools/search.js";
 import { installTool } from "./tools/install.js";
 import { listTool } from "./tools/list.js";
 import { removeTool } from "./tools/remove.js";
 import { infoTool } from "./tools/info.js";
 import { checkUpdatesTool } from "./tools/check-updates.js";
-import { planTool } from "./tools/plan.js";
+import { planTool, listPlansTool } from "./tools/plan.js";
+import { exportPlanTool, importPlanTool } from "./tools/plan-share.js";
 // Plugin-level config reference, populated at init
 let pluginConfig;
 let scanner = null;
@@ -55,6 +56,7 @@ export const SkillFinderPlugin = async ({ project, client, $, directory, worktre
     scanner = new ProjectScanner();
     // Fire-and-forget scan — don't block plugin init
     scanner.scan(process.cwd()).then((result) => {
+        setScanResult(result);
         console.log("skill-finder: project scan complete", result.detectedStacks.map((s) => s.name));
     }).catch(() => { });
     const hooks = new PluginHooks();
@@ -72,6 +74,9 @@ export const SkillFinderPlugin = async ({ project, client, $, directory, worktre
             "skill-finder_info": infoTool,
             "skill-finder_check-updates": checkUpdatesTool,
             "skill-finder_plan": planTool,
+            "skill-finder_list-plans": listPlansTool,
+            "skill-finder_export-plan": exportPlanTool,
+            "skill-finder_import-plan": importPlanTool,
         },
     };
 };

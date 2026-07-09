@@ -7,6 +7,11 @@ export interface SkillFinderConfig {
     preApprovedCategories: string[];
     showNotifications: boolean;
     maxRecommendations: number;
+    updateCheck?: {
+        enabled: boolean;
+        intervalHours: number;
+    };
+    agentTargets?: Record<string, string>;
 }
 export declare const DEFAULT_CONFIG: SkillFinderConfig;
 export declare function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinderConfig;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
-import { SkillPlanComposer, type SkillPlan } from "../composer/skill-plan.js";
+import { SkillPlanComposer, type SkillPlan, discoverPlans } from "../composer/skill-plan.js";
 import { getScanner } from "../index.js";
 
 const composer = new SkillPlanComposer();
@@ -10,6 +10,10 @@ const planArgsSchema = z.object({
     .string()
     .optional()
     .describe("Comma-separated stack names to generate a plan for (optional, uses scanner if omitted)"),
+  planKey: z
+    .string()
+    .optional()
+    .describe("Specific plan key to execute (e.g., 'nextjs-prisma' or a saved plan key)"),
 });
 
 function formatPlanMarkdown(plan: SkillPlan): string {
@@ -59,9 +63,24 @@ function formatPlanMarkdown(plan: SkillPlan): string {
 }
 
 export const planTool = tool({
-  description: "Generate skill plan recommendations based on detected tech stack",
+  description: "Generate skill plan recommendations based on detected tech stack or specific plan key",
   args: planArgsSchema.shape,
   async execute(args, _ctx) {
+    if (args.planKey) {
+      const plan = composer.getPlanByKey(args.planKey);
+      if (!plan) {
+        const availablePlans = composer.getAvailablePlans();
+        const keys = availablePlans.map((p) => p.key).join(", ");
+        return `Plan '${args.planKey}' not found. Available plans: ${keys}`;
+      }
+
+      const enriched = await composer.searchPlanSkills(plan);
+      const lines: string[] = [];
+      lines.push(`# 📋 Skill Plan: ${plan.name}`);
+      lines.push(formatPlanMarkdown(enriched));
+      return lines.join("\n");
+    }
+
     let stacks: string[] = [];
 
     if (args.stacks) {
@@ -101,6 +120,34 @@ export const planTool = tool({
 
     lines.push(`**Total: ${enrichedPlans.length} plan(s) with ${enrichedPlans.reduce((sum, p) => sum + p.skills.length, 0)} skill recommendations**`);
 
+    return lines.join("\n");
+  },
+});
+
+const listPlansArgsSchema = z.object({});
+
+export const listPlansTool = tool({
+  description: "List all available skill plans (built-in and saved)",
+  args: listPlansArgsSchema.shape,
+  async execute() {
+    const plans = composer.getAvailablePlans();
+
+    if (plans.length === 0) {
+      return "No skill plans available.";
+    }
+
+    const lines: string[] = [];
+    lines.push("# 📋 Available Skill Plans");
+    lines.push("");
+
+    for (const plan of plans) {
+      lines.push(`- **${plan.key}** — ${plan.name}`);
+      lines.push(`  ${plan.description}`);
+      lines.push(`  Categories: ${plan.matchCategories.join(", ")}`);
+      lines.push("");
+    }
+
+    lines.push(`**Total: ${plans.length} plan(s)**`);
     return lines.join("\n");
   },
 });

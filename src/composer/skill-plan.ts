@@ -1,5 +1,8 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { marketplaceRegistry } from "../registry/instance.js";
 import type { SkillSearchResult } from "../types.js";
+import { PlanSerializer } from "./plan-serializer.js";
 
 // ── Types ────────────────────────────────────────────────
 
@@ -83,14 +86,109 @@ const STACK_PLANS: Record<string, SkillPlan> = {
   },
 };
 
+// ── Plan Registry ─────────────────────────────────────────
+
+const PLANS_DIR = ".opencode/skill-finder-plans";
+const serializer = new PlanSerializer();
+
+/**
+ * Get the absolute path to the plans directory.
+ */
+function getPlansDir(projectRoot?: string): string {
+  const base = projectRoot ?? process.cwd();
+  return path.join(base, PLANS_DIR);
+}
+
+/**
+ * Discover all saved plans from the plans directory.
+ * Returns metadata for each plan found.
+ */
+export function discoverPlans(projectRoot?: string): SkillPlanMeta[] {
+  const plansDir = getPlansDir(projectRoot);
+
+  if (!fs.existsSync(plansDir)) {
+    return [];
+  }
+
+  const metas: SkillPlanMeta[] = [];
+
+  try {
+    const entries = fs.readdirSync(plansDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const planFile = path.join(plansDir, entry.name, "plan.json");
+      if (!fs.existsSync(planFile)) continue;
+
+      try {
+        const content = fs.readFileSync(planFile, "utf-8");
+        const plan = serializer.importPlan(content);
+        metas.push({
+          key: plan.key,
+          name: plan.name,
+          description: plan.description,
+          matchCategories: plan.matchCategories,
+        });
+      } catch {
+        // Skip corrupt plan files — don't crash
+        continue;
+      }
+    }
+  } catch {
+    // Directory read error — return empty
+    return [];
+  }
+
+  return metas;
+}
+
+/**
+ * Load a plan by key from the plans directory.
+ * Returns null if not found or if the plan is corrupt.
+ */
+export function loadPlan(key: string, projectRoot?: string): SkillPlan | null {
+  const plansDir = getPlansDir(projectRoot);
+  const planFile = path.join(plansDir, key, "plan.json");
+
+  if (!fs.existsSync(planFile)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(planFile, "utf-8");
+    return serializer.importPlan(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save a plan to the plans directory.
+ * Creates the directory structure if it doesn't exist.
+ */
+export function savePlan(plan: SkillPlan, projectRoot?: string): void {
+  const plansDir = getPlansDir(projectRoot);
+  const planDir = path.join(plansDir, plan.key);
+
+  // Only create directory on first save
+  if (!fs.existsSync(planDir)) {
+    fs.mkdirSync(planDir, { recursive: true });
+  }
+
+  const json = serializer.exportPlan(plan);
+  fs.writeFileSync(path.join(planDir, "plan.json"), json, "utf-8");
+}
+
 // ── Composer Class ───────────────────────────────────────
 
 export class SkillPlanComposer {
   /**
    * Compose skill plans based on detected stack categories.
    * Returns all plans whose matchCategories overlap with detectedStacks.
+   * Includes both built-in STACK_PLANS and registry plans.
    */
-  composePlan(detectedStacks: string[]): SkillPlan[] {
+  composePlan(detectedStacks: string[], projectRoot?: string): SkillPlan[] {
     const lower = detectedStacks.map((s) => s.toLowerCase());
     const matched: SkillPlan[] = [];
 
@@ -104,19 +202,48 @@ export class SkillPlanComposer {
       }
     }
 
+    // Also include registry plans
+    const registryPlans = discoverPlans(projectRoot);
+    for (const meta of registryPlans) {
+      const hasMatch = meta.matchCategories.some((cat) => lower.includes(cat));
+      if (hasMatch) {
+        const fullPlan = loadPlan(meta.key, projectRoot);
+        if (fullPlan) {
+          matched.push(fullPlan);
+        }
+      }
+    }
+
     return matched;
   }
 
   /**
    * Return all available plan metadata (without search results).
+   * Includes both built-in STACK_PLANS and registry plans.
    */
-  getAvailablePlans(): SkillPlanMeta[] {
-    return Object.values(STACK_PLANS).map((plan) => ({
+  getAvailablePlans(projectRoot?: string): SkillPlanMeta[] {
+    const builtIn = Object.values(STACK_PLANS).map((plan) => ({
       key: plan.key,
       name: plan.name,
       description: plan.description,
       matchCategories: plan.matchCategories,
     }));
+
+    const registry = discoverPlans(projectRoot);
+    return [...builtIn, ...registry];
+  }
+
+  /**
+   * Get a plan by key from either built-in STACK_PLANS or registry.
+   * Returns null if not found.
+   */
+  getPlanByKey(key: string, projectRoot?: string): SkillPlan | null {
+    const builtIn = STACK_PLANS[key];
+    if (builtIn) {
+      return { ...builtIn, skills: builtIn.skills.map((s) => ({ ...s })) };
+    }
+
+    return loadPlan(key, projectRoot);
   }
 
   /**

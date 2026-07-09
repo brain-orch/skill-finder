@@ -2,6 +2,10 @@ export interface LockMetadata {
     installedAt: string;
     version?: string;
     marketplace: string;
+    versionRange?: string;
+    changelog?: string;
+    breaking?: boolean;
+    dependencies?: string[];
 }
 export interface LockedSkill {
     identifier: string;
@@ -11,6 +15,10 @@ export interface LockedSkill {
     marketplace: string;
     lastChecked: string;
     targets: string[];
+    versionRange?: string;
+    changelog?: string;
+    breaking?: boolean;
+    dependencies?: string[];
 }
 export interface UpdateCheckResult {
     identifier: string;
@@ -18,6 +26,7 @@ export interface UpdateCheckResult {
     currentHash: string;
     newHash?: string;
     checkedAt: string;
+    breaking?: boolean;
 }
 export declare class SkillLockManager {
     private lockfilePath;
@@ -47,6 +56,18 @@ export declare class SkillLockManager {
      * Return skills not checked in N days (default 7).
      */
     getStaleSkills(days?: number): LockedSkill[];
+    /**
+     * Get version of a locked skill.
+     */
+    getSkillVersion(identifier: string): string | null;
+    /**
+     * Get dependencies of a locked skill.
+     */
+    getDependencies(identifier: string): string[];
+    /**
+     * Scan all locked skills and return status with breaking changes flagged.
+     */
+    checkAll(): Promise<UpdateCheckResult[]>;
     /**
      * Rebuild lockfile from filesystem by scanning installed skills
      * and re-hashing their SKILL.md files.

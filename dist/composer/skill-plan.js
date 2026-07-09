@@ -1,4 +1,7 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { marketplaceRegistry } from "../registry/instance.js";
+import { PlanSerializer } from "./plan-serializer.js";
 // ── Stack Plans ──────────────────────────────────────────
 const STACK_PLANS = {
     "nextjs-prisma": {
@@ -54,13 +57,96 @@ const STACK_PLANS = {
         ],
     },
 };
+// ── Plan Registry ─────────────────────────────────────────
+const PLANS_DIR = ".opencode/skill-finder-plans";
+const serializer = new PlanSerializer();
+/**
+ * Get the absolute path to the plans directory.
+ */
+function getPlansDir(projectRoot) {
+    const base = projectRoot ?? process.cwd();
+    return path.join(base, PLANS_DIR);
+}
+/**
+ * Discover all saved plans from the plans directory.
+ * Returns metadata for each plan found.
+ */
+export function discoverPlans(projectRoot) {
+    const plansDir = getPlansDir(projectRoot);
+    if (!fs.existsSync(plansDir)) {
+        return [];
+    }
+    const metas = [];
+    try {
+        const entries = fs.readdirSync(plansDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory())
+                continue;
+            const planFile = path.join(plansDir, entry.name, "plan.json");
+            if (!fs.existsSync(planFile))
+                continue;
+            try {
+                const content = fs.readFileSync(planFile, "utf-8");
+                const plan = serializer.importPlan(content);
+                metas.push({
+                    key: plan.key,
+                    name: plan.name,
+                    description: plan.description,
+                    matchCategories: plan.matchCategories,
+                });
+            }
+            catch {
+                // Skip corrupt plan files — don't crash
+                continue;
+            }
+        }
+    }
+    catch {
+        // Directory read error — return empty
+        return [];
+    }
+    return metas;
+}
+/**
+ * Load a plan by key from the plans directory.
+ * Returns null if not found or if the plan is corrupt.
+ */
+export function loadPlan(key, projectRoot) {
+    const plansDir = getPlansDir(projectRoot);
+    const planFile = path.join(plansDir, key, "plan.json");
+    if (!fs.existsSync(planFile)) {
+        return null;
+    }
+    try {
+        const content = fs.readFileSync(planFile, "utf-8");
+        return serializer.importPlan(content);
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Save a plan to the plans directory.
+ * Creates the directory structure if it doesn't exist.
+ */
+export function savePlan(plan, projectRoot) {
+    const plansDir = getPlansDir(projectRoot);
+    const planDir = path.join(plansDir, plan.key);
+    // Only create directory on first save
+    if (!fs.existsSync(planDir)) {
+        fs.mkdirSync(planDir, { recursive: true });
+    }
+    const json = serializer.exportPlan(plan);
+    fs.writeFileSync(path.join(planDir, "plan.json"), json, "utf-8");
+}
 // ── Composer Class ───────────────────────────────────────
 export class SkillPlanComposer {
     /**
      * Compose skill plans based on detected stack categories.
      * Returns all plans whose matchCategories overlap with detectedStacks.
+     * Includes both built-in STACK_PLANS and registry plans.
      */
-    composePlan(detectedStacks) {
+    composePlan(detectedStacks, projectRoot) {
         const lower = detectedStacks.map((s) => s.toLowerCase());
         const matched = [];
         for (const plan of Object.values(STACK_PLANS)) {
@@ -72,18 +158,43 @@ export class SkillPlanComposer {
                 });
             }
         }
+        // Also include registry plans
+        const registryPlans = discoverPlans(projectRoot);
+        for (const meta of registryPlans) {
+            const hasMatch = meta.matchCategories.some((cat) => lower.includes(cat));
+            if (hasMatch) {
+                const fullPlan = loadPlan(meta.key, projectRoot);
+                if (fullPlan) {
+                    matched.push(fullPlan);
+                }
+            }
+        }
         return matched;
     }
     /**
      * Return all available plan metadata (without search results).
+     * Includes both built-in STACK_PLANS and registry plans.
      */
-    getAvailablePlans() {
-        return Object.values(STACK_PLANS).map((plan) => ({
+    getAvailablePlans(projectRoot) {
+        const builtIn = Object.values(STACK_PLANS).map((plan) => ({
             key: plan.key,
             name: plan.name,
             description: plan.description,
             matchCategories: plan.matchCategories,
         }));
+        const registry = discoverPlans(projectRoot);
+        return [...builtIn, ...registry];
+    }
+    /**
+     * Get a plan by key from either built-in STACK_PLANS or registry.
+     * Returns null if not found.
+     */
+    getPlanByKey(key, projectRoot) {
+        const builtIn = STACK_PLANS[key];
+        if (builtIn) {
+            return { ...builtIn, skills: builtIn.skills.map((s) => ({ ...s })) };
+        }
+        return loadPlan(key, projectRoot);
     }
     /**
      * Search marketplace for each skill in the plan.
