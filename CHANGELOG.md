@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.2.0] - 2026-07-10
+
+### Features
+- **feat(cli)**: Full CLI with 8 commands (search, install, list, info, remove, check-updates, plan, mcp) — custom arg parser, zero new dependencies
+- **feat(cli)**: Windows-compatible entry point using `pathToFileURL` from `node:url`
+- **feat(recommender)**: Trust grade filtering (min grade "C" default) — filters out low-trust skills from recommendations
+- **feat(recommender)**: Cross-source deduplication — same skill from multiple marketplaces appears only once
+- **feat(recommender)**: In-memory feedback tracking — acceptSkill()/dismissSkill() with session-scoped Sets
+- **feat(recommender)**: Adaptive throttle — faster recommendations when user accepts, slower when dismissing
+- **feat(marketplace)**: Hugging Face models adapter (discovery-only — models are not installable skills)
+- **feat(error)**: SkillFinderError class with typed error codes (NETWORK, API, VALIDATION, TIMEOUT, NOT_FOUND, INSTALL_FAILED)
+- **feat(error)**: Exponential backoff with ±20% jitter for marketplace search retries
+- **feat(api)**: SkillFinderAPI programmatic class with 7 methods (search, install, list, info, remove, checkUpdates, plan)
+- **feat(api)**: Exported as `opencode-skill-finder/api` via package.json exports
+
+### Fixes
+- **fix(error)**: Add logging to all empty catch blocks across 7 marketplace adapters and tools
+- **fix(api)**: Use `os.tmpdir()` + `path.join()` instead of hardcoded `/tmp/` for cross-platform compatibility
+
+### Tests
+- **test(cli)**: 47 CLI command tests covering all 8 commands with happy + failure paths
+- **test(recommender)**: 42 tests for adaptive throttle, trust filtering, dedup, and feedback
+- **test(marketplace)**: 22 Hugging Face adapter tests
+- **test(error)**: 7 SkillFinderError + retry wiring tests
+- **test(api)**: 29 SkillFinderAPI class tests
+
+### Chore
+- **chore(deps)**: Zero new npm dependencies — all v2.2.0 features built on existing internals
+- **chore(api)**: Package exports updated with `"./api"` entry and types
+
 ## [2.1.1] - 2026-07-10
 
 ### Chore

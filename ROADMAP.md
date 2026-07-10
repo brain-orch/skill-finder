@@ -49,10 +49,11 @@ SkillFinder development milestones and future plans.
 - **GitHub Releases**: Created missing GitHub Releases for v2.0.0 and v2.1.0
 - **Test fixes**: Vitest v4 mock isolation compatibility in hooks test
 
-## v2.2.0 (Planned)
+## v2.2.0 (Released)
 
-- CLI implementation (currently throws "Not implemented")
-- Auto-recommendation improvements
-- Marketplace coverage expansion
-- Better error handling and retries
-- API for 3rd-party integrations
+- **CLI**: Full command-line interface with 8 commands (search, install, list, info, remove, check-updates, plan, mcp) — custom arg parser, `--help` per command
+- **Auto-Recommendation Improvements**: Trust grade filtering, cross-source dedup, in-memory feedback (accept/dismiss), adaptive throttle
+- **New Marketplace**: Hugging Face models adapter (discovery-only)
+- **Error Handling**: SkillFinderError class with typed error codes, exponential backoff with jitter for retries, logging in all catch blocks
+- **Programmatic API**: SkillFinderAPI class with 7 methods, exported as `opencode-skill-finder/api`
+- **Tests**: 789 total tests passing, 0 failures

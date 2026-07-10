@@ -5,7 +5,7 @@
 [![OpenCode Plugin](https://img.shields.io/badge/OpenCode-Plugin-green.svg)](https://opencode.ai)
 [![npm version](https://img.shields.io/npm/v/opencode-skill-finder.svg)](https://www.npmjs.com/package/opencode-skill-finder)
 
-> **OpenCode plugin that watches your task context, searches 7 skill marketplaces, caches locally with FTS5, and auto-recommends relevant skills.**
+> **OpenCode plugin that watches your task context, searches 8 skill marketplaces, caches locally with FTS5, auto-recommends relevant skills, and provides a full CLI + programmatic API.**
 
 ## Quick Install
 
@@ -145,8 +145,19 @@ SkillFinder enhances your OpenCode experience by:
 1. **Intent-Based Search** — Parses natural language queries with category expansion and scanner-aware context
 2. **Trust Scoring** — A-F trust grades with deep security analysis and visible badges
 3. **Version Management** — Lockfile version pinning, changelog tracking, smart update notifications
-4. **Multi-Marketplace Aggregation** — Searches 7 marketplaces with dedup and category grouping
+4. **Multi-Marketplace Aggregation** — Searches 8 marketplaces with dedup and category grouping
 5. **Plan Sharing** — Export/import skill collections as JSON with local plan registry
+
+## Features (v2.2.0)
+
+- **Full CLI** — 8 commands (search, install, list, info, remove, check-updates, plan, mcp) with `--help` per command. Custom arg parser, zero dependencies.
+- **Trust Grade Filtering** — Minimum trust grade filter (default "C") removes low-trust skills from recommendations.
+- **Cross-Source Dedup** — Same skill from multiple marketplaces appears only once in results.
+- **In-Memory Feedback** — `acceptSkill()` / `dismissSkill()` tracks user preferences per session, filtered from future recommendations.
+- **Adaptive Throttle** — Auto-adjusts recommendation frequency based on acceptance rate: faster when you accept, slower when you dismiss.
+- **Hugging Face Models** — Discovery-only adapter for ML models from Hugging Face (models are not installable as skills).
+- **SkillFinderError** — Typed error codes (NETWORK, API, VALIDATION, TIMEOUT, NOT_FOUND, INSTALL_FAILED) with exponential backoff retry.
+- **Programmatic API** — `SkillFinderAPI` class with 7 methods, imported via `opencode-skill-finder/api`.
 
 ## Features (v2.0.0)
 
@@ -201,7 +212,8 @@ Edit `.opencode/opencode.json`:
           "skillsmp",
           "mcpservers",
           "awesomeskill",
-          "clawhub"
+          "clawhub",
+          "huggingface"
         ]
       }
     }
@@ -230,20 +242,55 @@ Edit `~/.config/opencode/opencode.json`:
 | `autoRecommend` | boolean | `true` | Automatically recommend skills based on context |
 | `maxRecommendations` | number | `3` | Maximum skills to recommend per detection |
 | `searchTimeoutMs` | number | `15000` | Timeout for marketplace searches |
-| `marketplaces` | string[] | all 7 | Enabled marketplaces |
+| `marketplaces` | string[] | all 8 | Enabled marketplaces |
 | `retryCount` | number | `2` | Retry count for failed searches |
 | `retryBackoffMs` | number | `1000` | Exponential backoff base |
 | `agentTargets` | object | `{}` | Custom agent install targets (name → path mappings) |
 | `updateCheck.enabled` | boolean | `true` | Enable automatic update checking |
 | `updateCheck.intervalHours` | number | `24` | Hours between update checks |
+| `minTrustGrade` | string | `"C"` | Minimum trust grade for recommendations (A/B/C/D/F) |
 
 ## Usage
+
+### CLI Usage
+
+```bash
+# Search for skills
+skill-finder search "pdf extract text"
+
+# Install a skill
+skill-finder install lobehub:pdf-tools lobehub
+
+# List installed skills
+skill-finder list
+
+# Show skill info
+skill-finder info lobehub:pdf-tools
+
+# Check for updates
+skill-finder check-updates
+
+# Start MCP server
+skill-finder mcp
+```
+
+### Programmatic API
+
+```typescript
+import { SkillFinderAPI } from "opencode-skill-finder/api";
+
+const api = new SkillFinderAPI();
+const results = await api.search("pdf extract text");
+console.log(results);
+```
 
 ### Automatic Mode
 
 SkillFinder works automatically in the background. When it detects a task category, it searches marketplaces and presents recommendations.
 
 ### Manual Tools
+
+> **New in v2.2.0**: Use the CLI directly from your terminal — see [CLI Usage](#cli-usage) below.
 
 Use these tools anytime:
 
@@ -298,6 +345,7 @@ Use these tools anytime:
 | ClawHub | https://clawhub.ai | ✅ Active |
 | MCP Servers | https://registry.modelcontextprotocol.io | ✅ Active |
 | AwesomeSkill | https://awesomeskill.ai | ✅ Active |
+| Hugging Face Models | https://huggingface.co/models | 🔍 Discovery-only |
 
 ## Development
 
