@@ -201,17 +201,23 @@ ${changelogUrl}${footer}
 
 function main() {
   const tag = process.argv[2];
+  const explicitFromTag = process.argv[3]; // optional: override auto-detected previous tag
 
   if (!tag) {
-    console.error('Usage: node generate-patreon-post.mjs <tag>');
+    console.error('Usage: node generate-patreon-post.mjs <tag> [from-tag]');
     console.error('Example: node generate-patreon-post.mjs v2.2.0');
+    console.error('Example: node generate-patreon-post.mjs v2.2.0 v1.1.0  # cumulative post from v1.1.0 to v2.2.0');
     process.exit(1);
   }
 
   assertGitAvailable();
   assertTagExists(tag);
 
-  const prevTag = findPreviousTag(tag);
+  if (explicitFromTag) {
+    assertTagExists(explicitFromTag);
+  }
+
+  const prevTag = explicitFromTag || findPreviousTag(tag);
   const commits = getCommits(prevTag, tag);
   const date = getDateString();
 

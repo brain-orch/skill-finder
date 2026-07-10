@@ -6,6 +6,17 @@ name: Generate Patreon Post
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to generate post for'
+        required: true
+        type: string
+        default: 'v2.2.0'
+      from-tag:
+        description: 'Optional: start tag for cumulative range (defaults to previous tag)'
+        required: false
+        type: string
 
 jobs:
   generate-patreon-post:
@@ -22,8 +33,16 @@ jobs:
         with:
           node-version: 18
 
+      - name: Resolve tag
+        id: resolve-tag
+        run: |
+          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          FROM_TAG="${{ github.event.inputs.from-tag || '' }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "from-tag=${FROM_TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Generate Patreon post
-        run: node scripts/generate-patreon-post.mjs ${{ github.event.release.tag_name }}
+        run: node scripts/generate-patreon-post.mjs ${{ steps.resolve-tag.outputs.tag }} ${{ steps.resolve-tag.outputs.from-tag }}
 
       # Optional: queue post to Papoa if PAPOA_API_KEY is configured.
       # Step is skipped entirely when the secret is not set.
@@ -38,7 +57,7 @@ jobs:
           curl -fsSL "https://github.com/Shynixn/PatreonPostApi/releases/download/${PAPOA_VERSION}/papoa-linux-x64" -o /tmp/papoa
           chmod +x /tmp/papoa
           /tmp/papoa post create \
-            --title "SkillFinder ${{ github.event.release.tag_name }} — Release Update" \
+            --title "SkillFinder ${{ steps.resolve-tag.outputs.tag }} — Release Update" \
             --content-file patreon-post.md \
             --content-format text/markdown \
             --output-format text/plain
