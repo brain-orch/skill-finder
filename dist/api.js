@@ -1,3 +1,5 @@
+import * as os from "node:os";
+import * as path from "node:path";
 import { loadConfig } from "./config.js";
 import { marketplaceRegistry } from "./registry/instance.js";
 import { SkillLockManager } from "./cache/skill-lock.js";
@@ -50,7 +52,7 @@ export class SkillFinderAPI {
         }
         const targetDir = target ?? "opencode";
         // Download to temp dir
-        const tmpDir = `/tmp/skill-install-${Date.now()}`;
+        const tmpDir = path.join(os.tmpdir(), `skill-install-${Date.now()}`);
         const result = await adapter.install(identifier, tmpDir);
         // Lock the skill
         try {
