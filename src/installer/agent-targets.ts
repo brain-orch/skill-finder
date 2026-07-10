@@ -170,8 +170,11 @@ export function probeAgentDirs(projectRoot: string): DetectedAgent[] {
           source: probe.source,
         });
       }
-    } catch {
-      // Skip inaccessible paths
+    } catch (err) {
+      console.warn(
+        "[skill-finder] skipping inaccessible project agent path:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -188,8 +191,11 @@ export function probeAgentDirs(projectRoot: string): DetectedAgent[] {
           source: probe.source,
         });
       }
-    } catch {
-      // Skip inaccessible paths
+    } catch (err) {
+      console.warn(
+        "[skill-finder] skipping inaccessible home agent path:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

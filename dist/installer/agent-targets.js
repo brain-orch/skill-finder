@@ -134,8 +134,8 @@ export function probeAgentDirs(projectRoot) {
                 });
             }
         }
-        catch {
-            // Skip inaccessible paths
+        catch (err) {
+            console.warn("[skill-finder] skipping inaccessible project agent path:", err instanceof Error ? err.message : String(err));
         }
     }
     const homeDir = os.homedir();
@@ -153,8 +153,8 @@ export function probeAgentDirs(projectRoot) {
                 });
             }
         }
-        catch {
-            // Skip inaccessible paths
+        catch (err) {
+            console.warn("[skill-finder] skipping inaccessible home agent path:", err instanceof Error ? err.message : String(err));
         }
     }
     return detected;

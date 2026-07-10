@@ -8,6 +8,7 @@ export interface Recommendation {
     marketplace: string;
     description: string;
     score: number;
+    trustGrade: "A" | "B" | "C" | "D" | "F";
     matchReasons: string[];
     fromCache: boolean;
     alreadyInstalled: boolean;
@@ -18,6 +19,7 @@ export interface RecommenderConfig {
     networkWeight?: number;
     minScore?: number;
     installedSkillNames?: string[];
+    minTrustGrade?: "A" | "B" | "C" | "D" | "F";
 }
 export declare class SkillRecommender {
     private searchEngine;
@@ -25,12 +27,19 @@ export declare class SkillRecommender {
     private config;
     private registry;
     private installedSkillNames;
+    private trustScorer;
+    private dismissedSkills;
+    private acceptedSkills;
     constructor(searchEngine: SearchEngine, registry: MarketRegistry, indexer: SkillIndexer | null, config?: RecommenderConfig);
     recommend(context: DetectedContext): Promise<Recommendation[]>;
+    acceptSkill(identifier: string): void;
+    dismissSkill(identifier: string): void;
+    resetFeedback(): void;
     private searchLocal;
     private searchNetwork;
     private mergeResults;
     private filterResults;
+    private deduplicateByIdentifier;
     private indexedToRecommendation;
     private toRecommendation;
     private scoreByCategoryMatch;

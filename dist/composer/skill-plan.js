@@ -95,14 +95,14 @@ export function discoverPlans(projectRoot) {
                     matchCategories: plan.matchCategories,
                 });
             }
-            catch {
-                // Skip corrupt plan files — don't crash
+            catch (err) {
+                console.warn("[skill-finder] skipping corrupt plan file:", err instanceof Error ? err.message : String(err));
                 continue;
             }
         }
     }
-    catch {
-        // Directory read error — return empty
+    catch (err) {
+        console.warn("[skill-finder] plans directory read failed:", err instanceof Error ? err.message : String(err));
         return [];
     }
     return metas;
@@ -121,7 +121,8 @@ export function loadPlan(key, projectRoot) {
         const content = fs.readFileSync(planFile, "utf-8");
         return serializer.importPlan(content);
     }
-    catch {
+    catch (err) {
+        console.warn("[skill-finder] failed to load plan:", err instanceof Error ? err.message : String(err));
         return null;
     }
 }
@@ -210,7 +211,8 @@ export class SkillPlanComposer {
                 });
                 results.push(searchResults);
             }
-            catch {
+            catch (err) {
+                console.warn("[skill-finder] plan skill search failed:", err instanceof Error ? err.message : String(err));
                 results.push([]);
             }
         }

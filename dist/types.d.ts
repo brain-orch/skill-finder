@@ -2,7 +2,7 @@ export interface SkillSearchResult {
     id: string;
     name: string;
     description: string;
-    marketplace: "lobehub" | "skillssh" | "agentskillsh" | "skillsmp" | "mcpservers" | "awesomeskill" | "clawhub";
+    marketplace: "lobehub" | "skillssh" | "agentskillsh" | "skillsmp" | "mcpservers" | "awesomeskill" | "clawhub" | "huggingface";
     category: string | null;
     triggers: string[];
     installCount: number;

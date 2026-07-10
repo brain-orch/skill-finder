@@ -9,6 +9,7 @@ export declare class MarketRegistry {
         signal?: AbortSignal;
         category?: string;
     }): Promise<SkillSearchResult[]>;
+    private searchWithRetry;
     getMarketplace(name: string): SkillMarketplace | undefined;
     listAvailable(): string[];
 }

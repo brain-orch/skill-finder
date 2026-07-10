@@ -68,7 +68,11 @@ export class LobeHubMarketplace implements SkillMarketplace {
       }
 
       return results;
-    } catch {
+    } catch (err) {
+      console.warn(
+        "[skill-finder] lobehub search failed:",
+        (err as Error).message,
+      );
       return [];
     }
   }

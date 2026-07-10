@@ -249,4 +249,124 @@ describe("PluginHooks", () => {
       expect(console.log).not.toHaveBeenCalled();
     });
   });
+
+  // --- adaptive throttle ---
+
+  describe("adaptive throttle", () => {
+    it("tracks recommendationCount when suppressOn is provided", () => {
+      expect(hooks.getRecommendationCount()).toBe(0);
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.5, consecutiveDismissals: 0 });
+      expect(hooks.getRecommendationCount()).toBe(1);
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.5, consecutiveDismissals: 0 });
+      expect(hooks.getRecommendationCount()).toBe(2);
+    });
+
+    it("does not increment recommendationCount without suppressOn", () => {
+      hooks.canSearch("pdf-processing");
+      hooks.canSearch("pdf-processing");
+      expect(hooks.getRecommendationCount()).toBe(0);
+    });
+
+    it("doubles debounce to 60s when acceptanceRate < 0.2", async () => {
+      hooks = new PluginHooks({ debounceMs: 30_000 });
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.1, consecutiveDismissals: 0 });
+      vi.mocked(console.log).mockClear();
+      const originalNow = Date.now;
+      const baseTime = originalNow();
+      let currentTime = baseTime;
+      vi.spyOn(Date, "now").mockImplementation(() => currentTime);
+
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.1, consecutiveDismissals: 0 });
+
+      currentTime = baseTime + 31_000;
+      expect(hooks.canSearch("pdf-processing", { acceptanceRate: 0.1, consecutiveDismissals: 0 })).toBe(false);
+
+      currentTime = baseTime + 61_000;
+      expect(hooks.canSearch("pdf-processing", { acceptanceRate: 0.1, consecutiveDismissals: 0 })).toBe(true);
+
+      Date.now = originalNow;
+    });
+
+    it("halves debounce to 15s when acceptanceRate > 0.5", async () => {
+      hooks = new PluginHooks({ debounceMs: 30_000 });
+      const originalNow = Date.now;
+      const baseTime = originalNow();
+      let currentTime = baseTime;
+      vi.spyOn(Date, "now").mockImplementation(() => currentTime);
+
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.7, consecutiveDismissals: 0 });
+
+      currentTime = baseTime + 16_000;
+      expect(hooks.canSearch("pdf-processing", { acceptanceRate: 0.7, consecutiveDismissals: 0 })).toBe(true);
+
+      Date.now = originalNow;
+    });
+
+    it("suppresses entirely when consecutiveDismissals >= 5", () => {
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0, consecutiveDismissals: 5 });
+      expect(hooks.isSuppressed()).toBe(true);
+      expect(hooks.canSearch("pdf-processing", { acceptanceRate: 1.0, consecutiveDismissals: 0 })).toBe(false);
+    });
+
+    it("recordAcceptance resets consecutiveDismissals", () => {
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      expect(hooks.getConsecutiveDismissals()).toBe(3);
+      hooks.recordAcceptance();
+      expect(hooks.getConsecutiveDismissals()).toBe(0);
+      expect(hooks.getAcceptanceCount()).toBe(1);
+    });
+
+    it("recordDismissal increments consecutiveDismissals", () => {
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      expect(hooks.getConsecutiveDismissals()).toBe(2);
+    });
+
+    it("zero acceptance rate leads to eventual suppression via adaptive debounce", () => {
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      const dismissed = hooks.getConsecutiveDismissals();
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0, consecutiveDismissals: dismissed });
+      expect(hooks.getRecommendationCount()).toBe(1);
+    });
+
+    it("resets adaptive state on session created", async () => {
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      hooks.recordDismissal();
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0, consecutiveDismissals: 3 });
+      expect(hooks.getRecommendationCount()).toBe(1);
+      expect(hooks.getConsecutiveDismissals()).toBe(3);
+
+      await hooks.onSessionCreated(null);
+      expect(hooks.getRecommendationCount()).toBe(0);
+      expect(hooks.getAcceptanceCount()).toBe(0);
+      expect(hooks.getConsecutiveDismissals()).toBe(0);
+      expect(hooks.isSuppressed()).toBe(false);
+    });
+
+    it("acceptanceRate exactly 0.5 uses default debounce (no adjustment)", async () => {
+      hooks = new PluginHooks({ debounceMs: 30_000 });
+      const originalNow = Date.now;
+      const baseTime = originalNow();
+      let currentTime = baseTime;
+      vi.spyOn(Date, "now").mockImplementation(() => currentTime);
+
+      hooks.canSearch("pdf-processing", { acceptanceRate: 0.5, consecutiveDismissals: 0 });
+
+      currentTime = baseTime + 31_000;
+      expect(hooks.canSearch("pdf-processing", { acceptanceRate: 0.5, consecutiveDismissals: 0 })).toBe(true);
+
+      Date.now = originalNow;
+    });
+
+    it("backward compatible: single-arg canSearch works unchanged", () => {
+      expect(hooks.canSearch("pdf-processing")).toBe(true);
+      expect(hooks.canSearch("pdf-processing")).toBe(false);
+      expect(hooks.getRecommendationCount()).toBe(0);
+    });
+  });
 });

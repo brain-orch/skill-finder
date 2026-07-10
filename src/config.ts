@@ -12,6 +12,7 @@ export interface SkillFinderConfig {
     intervalHours: number;
   };
   agentTargets?: Record<string, string>;
+  minTrustGrade?: "A" | "B" | "C" | "D" | "F";
 }
 
 export const DEFAULT_CONFIG: SkillFinderConfig = {
@@ -28,6 +29,7 @@ export const DEFAULT_CONFIG: SkillFinderConfig = {
     intervalHours: 24,
   },
   agentTargets: undefined,
+  minTrustGrade: "C",
 };
 
 function clamp(value: number, min: number, max: number, label: string): number {
@@ -67,6 +69,14 @@ function validateAgentTargets(value: unknown): Record<string, string> | undefine
     }
   }
   return Object.keys(result).length > 0 ? result : undefined;
+}
+
+const VALID_TRUST_GRADES = new Set(["A", "B", "C", "D", "F"]);
+function validateTrustGrade(value: unknown): "A" | "B" | "C" | "D" | "F" {
+  if (typeof value === "string" && VALID_TRUST_GRADES.has(value)) {
+    return value as "A" | "B" | "C" | "D" | "F";
+  }
+  return DEFAULT_CONFIG.minTrustGrade!;
 }
 
 export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinderConfig {
@@ -122,5 +132,6 @@ export function loadConfig(userConfig?: Partial<SkillFinderConfig>): SkillFinder
     agentTargets: userConfig.agentTargets && typeof userConfig.agentTargets === "object"
       ? validateAgentTargets(userConfig.agentTargets)
       : DEFAULT_CONFIG.agentTargets,
+    minTrustGrade: validateTrustGrade(userConfig.minTrustGrade),
   };
 }

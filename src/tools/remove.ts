@@ -76,8 +76,11 @@ export const removeTool = tool({
     try {
       const lockManager = new SkillLockManager(projectRoot);
       lockManager.unlockSkill(identifier);
-    } catch {
-      // Lockfile write failure should not block removal
+    } catch (err) {
+      console.warn(
+        "[skill-finder] lockfile write failed during removal:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
 
     const lines: string[] = [

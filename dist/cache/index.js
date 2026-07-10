@@ -131,7 +131,8 @@ export class CacheManager {
             this.lastRefreshFailed = false;
             return { indexed: cachedSkills.length, failed: 0 };
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] cache refresh failed:", err instanceof Error ? err.message : String(err));
             this.lastRefreshFailed = true;
             return { indexed: 0, failed: 1 };
         }

@@ -12,6 +12,7 @@ export const DEFAULT_CONFIG = {
         intervalHours: 24,
     },
     agentTargets: undefined,
+    minTrustGrade: "C",
 };
 function clamp(value, min, max, label) {
     if (typeof value !== "number" || isNaN(value)) {
@@ -50,6 +51,13 @@ function validateAgentTargets(value) {
     }
     return Object.keys(result).length > 0 ? result : undefined;
 }
+const VALID_TRUST_GRADES = new Set(["A", "B", "C", "D", "F"]);
+function validateTrustGrade(value) {
+    if (typeof value === "string" && VALID_TRUST_GRADES.has(value)) {
+        return value;
+    }
+    return DEFAULT_CONFIG.minTrustGrade;
+}
 export function loadConfig(userConfig) {
     if (!userConfig || typeof userConfig !== "object") {
         return { ...DEFAULT_CONFIG };
@@ -79,6 +87,7 @@ export function loadConfig(userConfig) {
         agentTargets: userConfig.agentTargets && typeof userConfig.agentTargets === "object"
             ? validateAgentTargets(userConfig.agentTargets)
             : DEFAULT_CONFIG.agentTargets,
+        minTrustGrade: validateTrustGrade(userConfig.minTrustGrade),
     };
 }
 //# sourceMappingURL=config.js.map

@@ -42,6 +42,13 @@ SkillFinder development milestones and future plans.
 - **Platform Selection**: Interactive platform detection for OpenCode/Claude Code/Cursor installers
 - Zero `execSync` remaining in adapter layer
 
+## v2.1.1 (Released)
+
+- **Major Dependency Updates**: TypeScript 5.9→7.0, Vitest 3.2→4.1, better-sqlite3 11→12, @types/node 22→26
+- **Explicit zod dependency**: Pinned zod@4.1.8 as direct dependency for plugin type compatibility
+- **GitHub Releases**: Created missing GitHub Releases for v2.0.0 and v2.1.0
+- **Test fixes**: Vitest v4 mock isolation compatibility in hooks test
+
 ## v2.2.0 (Planned)
 
 - CLI implementation (currently throws "Not implemented")

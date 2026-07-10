@@ -65,7 +65,11 @@ export class ClawHubMarketplace implements SkillMarketplace {
       }
 
       return results.slice(0, limit);
-    } catch {
+    } catch (err) {
+      console.warn(
+        "[skill-finder] clawhub search failed:",
+        (err as Error).message,
+      );
       return [];
     }
   }
@@ -82,7 +86,11 @@ export class ClawHubMarketplace implements SkillMarketplace {
 
       const results = await this.search(query, { limit: 5 });
       return results.length > 0 ? results[0] : null;
-    } catch {
+    } catch (err) {
+      console.warn(
+        "[skill-finder] clawhub getSkillInfo failed:",
+        (err as Error).message,
+      );
       return null;
     }
   }

@@ -35,7 +35,8 @@ export class AgentSkillsMarketplace {
             const json = (await response.json());
             return (json.data || []).map(mapSkill);
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] agentskillsh search failed:", err.message);
             return [];
         }
     }
@@ -47,7 +48,8 @@ export class AgentSkillsMarketplace {
             const results = await this.search(slug, { limit: 5 });
             return results.length > 0 ? results[0] : null;
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] agentskillsh getSkillInfo failed:", err.message);
             return null;
         }
     }

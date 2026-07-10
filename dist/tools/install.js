@@ -140,8 +140,8 @@ export const installTool = tool({
                         // SkillSearchResult doesn't have version, so we default to "0.0.0"
                     }
                 }
-                catch {
-                    // Skill info fetch failure should not block installation
+                catch (err) {
+                    console.warn("[skill-finder] skill info fetch failed, continuing installation:", err instanceof Error ? err.message : String(err));
                 }
                 lockManager.lockSkill(identifier, content, {
                     installedAt: new Date().toISOString(),
@@ -153,8 +153,8 @@ export const installTool = tool({
                     dependencies,
                 }, installedTargets);
             }
-            catch {
-                // Lockfile write failure should not block installation
+            catch (err) {
+                console.warn("[skill-finder] lockfile write failed, installation will continue without version tracking:", err instanceof Error ? err.message : String(err));
             }
             const lines = [
                 `## ✅ Installed ${identifier}`,
@@ -179,8 +179,8 @@ export const installTool = tool({
             try {
                 fs.rmSync(tmpDir, { recursive: true, force: true });
             }
-            catch {
-                // Ignore cleanup errors
+            catch (err) {
+                console.warn("[skill-finder] temp dir cleanup failed:", err instanceof Error ? err.message : String(err));
             }
         }
     },

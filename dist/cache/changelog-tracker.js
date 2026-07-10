@@ -37,8 +37,8 @@ export class ChangelogTracker {
                 return parsed;
             }
         }
-        catch {
-            // Missing or corrupt — treat as empty
+        catch (err) {
+            console.warn("[skill-finder] changelog read failed, treating as empty:", err instanceof Error ? err.message : String(err));
         }
         return { version: 1, changes: {} };
     }

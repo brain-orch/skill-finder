@@ -102,7 +102,11 @@ function readFileWithTimeout(
     } finally {
       clearTimeout(timeoutId);
     }
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[skill-finder] file read failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return null;
   }
 }
@@ -120,8 +124,11 @@ function readPackageJson(root: string): string[] {
     const deps = (pkg.dependencies ?? {}) as Record<string, unknown>;
     const devDeps = (pkg.devDependencies ?? {}) as Record<string, unknown>;
     return [...Object.keys(deps), ...Object.keys(devDeps)];
-  } catch {
-    // Corrupted JSON — skip gracefully
+  } catch (err) {
+    console.warn(
+      "[skill-finder] package.json parse failed:",
+      err instanceof Error ? err.message : String(err),
+    );
     return [];
   }
 }
@@ -278,8 +285,11 @@ export class ProjectScanner {
       try {
         const stackNames = detectedStacks.map((s) => s.name);
         result.composedPlans = this.planComposer.composePlan(stackNames);
-      } catch {
-        // Composition failure is non-fatal
+      } catch (err) {
+        console.warn(
+          "[skill-finder] plan composition failed:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
     }
 
@@ -360,8 +370,11 @@ export class ProjectScanner {
             results.push(result);
           }
         }
-      } catch {
-        // Network failure is non-fatal — continue with other stacks
+      } catch (err) {
+        console.warn(
+          "[skill-finder] stack search failed, continuing with other stacks:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
     }
 

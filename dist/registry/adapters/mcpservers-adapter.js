@@ -57,7 +57,8 @@ export class MCPServersMarketplace {
             }));
             return results.slice(0, limit);
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] mcpservers search failed:", err.message);
             return [];
         }
     }
@@ -74,7 +75,8 @@ export class MCPServersMarketplace {
             const exact = results.find((r) => r.name === name);
             return exact ?? results[0];
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] mcpservers getSkillInfo failed:", err.message);
             return null;
         }
     }

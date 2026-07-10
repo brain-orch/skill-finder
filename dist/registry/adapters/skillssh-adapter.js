@@ -42,7 +42,8 @@ export class SkillShMarketplace {
             }));
             return results.slice(0, limit);
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] skillssh search failed:", err.message);
             return [];
         }
     }
@@ -55,7 +56,8 @@ export class SkillShMarketplace {
             const results = await this.search(slug, { limit: 5 });
             return results.length > 0 ? results[0] : null;
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] skillssh getSkillInfo failed:", err.message);
             return null;
         }
     }

@@ -44,7 +44,8 @@ export const checkUpdatesTool = tool({
                     lines.push(`- **${skill.identifier}**: ✅ up to date`);
                 }
             }
-            catch {
+            catch (err) {
+                console.warn("[skill-finder] update check failed for", skill.identifier, err instanceof Error ? err.message : String(err));
                 lines.push(`- **${skill.identifier}**: ⚠️ failed to check`);
             }
         }

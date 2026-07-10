@@ -9,6 +9,17 @@ export interface HookConfig {
   debounceMs?: number; // Default: 30000 (30s per category)
 }
 
+/** Adaptive throttle input passed by the caller to adjust debounce dynamically. */
+export interface AdaptiveThrottle {
+  acceptanceRate: number;       // 0..1 — ratio of accepts to total recommendations
+  consecutiveDismissals: number;
+}
+
+// Threshold defaults — tunable in future versions
+const HIGH_ACCEPTANCE_THRESHOLD = 0.5;
+const LOW_ACCEPTANCE_THRESHOLD = 0.2;
+const DISMISSAL_SUPPRESS_THRESHOLD = 5;
+
 /** Keyword → categories mapping */
 const KEYWORD_MAP: [string[], string[]][] = [
   [["pdf", "extract text", "document", "ocr"], ["pdf-processing", "document"]],
@@ -28,6 +39,10 @@ const DEFAULT_DEBOUNCE_MS = 30_000;
 export class PluginHooks {
   private config: HookConfig;
   private lastSearchTime: Map<string, number> = new Map();
+  private recommendationCount = 0;
+  private acceptanceCount = 0;
+  private consecutiveDismissals = 0;
+  private suppressed = false;
 
   constructor(config?: HookConfig) {
     this.config = { debounceMs: config?.debounceMs ?? DEFAULT_DEBOUNCE_MS };
@@ -40,6 +55,10 @@ export class PluginHooks {
   async onSessionCreated(_input: unknown): Promise<void> {
     console.log("skill-finder: session started");
     this.lastSearchTime.clear();
+    this.recommendationCount = 0;
+    this.acceptanceCount = 0;
+    this.consecutiveDismissals = 0;
+    this.suppressed = false;
   }
 
   /**
@@ -93,16 +112,60 @@ export class PluginHooks {
   }
 
   /** Check debounce: returns true if enough time has passed since last search for this category. */
-  canSearch(category: string): boolean {
+  canSearch(category: string, suppressOn?: AdaptiveThrottle): boolean {
+    if (this.suppressed) return false;
+
+    let debounceMs = this.config.debounceMs!;
+
+    if (suppressOn) {
+      this.recommendationCount++;
+
+      if (suppressOn.consecutiveDismissals >= DISMISSAL_SUPPRESS_THRESHOLD) {
+        this.suppressed = true;
+        return false;
+      }
+
+      if (suppressOn.acceptanceRate < LOW_ACCEPTANCE_THRESHOLD) {
+        debounceMs = 60_000;
+      } else if (suppressOn.acceptanceRate > HIGH_ACCEPTANCE_THRESHOLD) {
+        debounceMs = 15_000;
+      }
+    }
+
     const now = Date.now();
     const last = this.lastSearchTime.get(category);
 
-    if (last === undefined || now - last > this.config.debounceMs!) {
+    if (last === undefined || now - last > debounceMs) {
       this.lastSearchTime.set(category, now);
       return true;
     }
 
     return false;
+  }
+
+  recordAcceptance(): void {
+    this.acceptanceCount++;
+    this.consecutiveDismissals = 0;
+  }
+
+  recordDismissal(): void {
+    this.consecutiveDismissals++;
+  }
+
+  getRecommendationCount(): number {
+    return this.recommendationCount;
+  }
+
+  getAcceptanceCount(): number {
+    return this.acceptanceCount;
+  }
+
+  getConsecutiveDismissals(): number {
+    return this.consecutiveDismissals;
+  }
+
+  isSuppressed(): boolean {
+    return this.suppressed;
   }
 
   // ---- private helpers ----

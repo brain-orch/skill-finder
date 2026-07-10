@@ -2,7 +2,7 @@ export interface SkillSearchResult {
   id: string;                                       // Unique identifier (e.g. "lobehub:pdf-tools")
   name: string;                                     // Skill name (lowercase, hyphen-separated)
   description: string;                              // 1-1024 chars, third-person
-  marketplace: "lobehub" | "skillssh" | "agentskillsh" | "skillsmp" | "mcpservers" | "awesomeskill" | "clawhub";
+  marketplace: "lobehub" | "skillssh" | "agentskillsh" | "skillsmp" | "mcpservers" | "awesomeskill" | "clawhub" | "huggingface";
   category: string | null;                          // Category/tag (e.g. "pdf-processing")
   triggers: string[];                               // Keywords that trigger this skill
   installCount: number;                             // Number of installs (0 if unknown)

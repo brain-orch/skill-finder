@@ -249,8 +249,11 @@ export class SkillActivator {
         installedAt: new Date().toISOString(),
         marketplace: "unknown",
       });
-    } catch {
-      // Lockfile write failure should not block activation
+    } catch (err) {
+      console.warn(
+        "[skill-finder] lockfile write failed during activation:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

@@ -70,7 +70,11 @@ export class AgentSkillsMarketplace implements SkillMarketplace {
 
       const json = (await response.json()) as AgentSkillResponse;
       return (json.data || []).map(mapSkill);
-    } catch {
+    } catch (err) {
+      console.warn(
+        "[skill-finder] agentskillsh search failed:",
+        (err as Error).message,
+      );
       return [];
     }
   }
@@ -83,7 +87,11 @@ export class AgentSkillsMarketplace implements SkillMarketplace {
 
       const results = await this.search(slug, { limit: 5 });
       return results.length > 0 ? results[0] : null;
-    } catch {
+    } catch (err) {
+      console.warn(
+        "[skill-finder] agentskillsh getSkillInfo failed:",
+        (err as Error).message,
+      );
       return null;
     }
   }

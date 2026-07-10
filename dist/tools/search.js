@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { tool } from "@opencode-ai/plugin";
+import { SkillFinderError, ErrorCode } from "../error.js";
 import { marketplaceRegistry } from "../registry/instance.js";
 import { QualityScorer } from "../scoring/quality.js";
 import { TrustScorer } from "../scoring/trust-scorer.js";
@@ -104,8 +105,10 @@ export const searchTool = tool({
             lines.push(`**Total: ${results.length} skills found** (showing top ${limit})`);
             return lines.join("\n");
         }
-        catch {
-            return "Search failed. All marketplaces returned errors.";
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.warn("[skill-finder] search failed:", message);
+            throw new SkillFinderError("Search failed. All marketplaces returned errors. Please try again later.", ErrorCode.NETWORK, err);
         }
     },
 });

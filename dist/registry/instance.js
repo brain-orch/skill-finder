@@ -6,8 +6,9 @@ import { SkillsMPMarketplace } from "./adapters/skillsmp-adapter.js";
 import { ClawHubMarketplace } from "./adapters/clawhub-adapter.js";
 import { MCPServersMarketplace } from "./adapters/mcpservers-adapter.js";
 import { AwesomeSkillMarketplace } from "./adapters/awesomeskill-adapter.js";
+import { HuggingFaceMarketplace } from "./adapters/huggingface-adapter.js";
 const config = {
-    marketplaces: ["lobehub", "skillssh", "agentskillsh", "skillsmp", "clawhub", "mcpservers", "awesomeskill"],
+    marketplaces: ["lobehub", "skillssh", "agentskillsh", "skillsmp", "clawhub", "mcpservers", "awesomeskill", "huggingface"],
     searchTimeoutMs: 15_000,
     retryCount: 2,
     retryBackoffMs: 1_000,
@@ -20,6 +21,7 @@ registry.addAdapter(new SkillsMPMarketplace());
 registry.addAdapter(new ClawHubMarketplace());
 registry.addAdapter(new MCPServersMarketplace());
 registry.addAdapter(new AwesomeSkillMarketplace());
+registry.addAdapter(new HuggingFaceMarketplace());
 export { registry as marketplaceRegistry };
 export { config as defaultMarketplaceConfig };
 //# sourceMappingURL=instance.js.map

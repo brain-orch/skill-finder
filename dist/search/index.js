@@ -17,7 +17,8 @@ export class SearchEngine {
             const results = await this.registry.searchAll(query, { limit });
             return this.ranker.rank(results, query, limit);
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] search failed:", err instanceof Error ? err.message : String(err));
             return [];
         }
     }
@@ -48,7 +49,8 @@ export class SearchEngine {
                 clearTimeout(timeoutId);
             }
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] marketplace search failed:", err instanceof Error ? err.message : String(err));
             return [];
         }
     }

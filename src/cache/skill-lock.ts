@@ -262,8 +262,11 @@ export class SkillLockManager {
       if (parsed && typeof parsed === "object" && parsed.skills) {
         return parsed;
       }
-    } catch {
-      // Missing or corrupt — treat as empty
+    } catch (err) {
+      console.warn(
+        "[skill-finder] lockfile read failed, treating as empty:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
     return { version: 1, skills: {} };
   }

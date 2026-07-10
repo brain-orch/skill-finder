@@ -40,7 +40,8 @@ export class LobeHubMarketplace {
             }
             return results;
         }
-        catch {
+        catch (err) {
+            console.warn("[skill-finder] lobehub search failed:", err.message);
             return [];
         }
     }

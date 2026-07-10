@@ -4,6 +4,10 @@
  * Detects task categories from messages and tool calls,
  * applies debouncing to avoid redundant searches.
  */
+// Threshold defaults — tunable in future versions
+const HIGH_ACCEPTANCE_THRESHOLD = 0.5;
+const LOW_ACCEPTANCE_THRESHOLD = 0.2;
+const DISMISSAL_SUPPRESS_THRESHOLD = 5;
 /** Keyword → categories mapping */
 const KEYWORD_MAP = [
     [["pdf", "extract text", "document", "ocr"], ["pdf-processing", "document"]],
@@ -21,6 +25,10 @@ const DEFAULT_DEBOUNCE_MS = 30_000;
 export class PluginHooks {
     config;
     lastSearchTime = new Map();
+    recommendationCount = 0;
+    acceptanceCount = 0;
+    consecutiveDismissals = 0;
+    suppressed = false;
     constructor(config) {
         this.config = { debounceMs: config?.debounceMs ?? DEFAULT_DEBOUNCE_MS };
     }
@@ -31,6 +39,10 @@ export class PluginHooks {
     async onSessionCreated(_input) {
         console.log("skill-finder: session started");
         this.lastSearchTime.clear();
+        this.recommendationCount = 0;
+        this.acceptanceCount = 0;
+        this.consecutiveDismissals = 0;
+        this.suppressed = false;
     }
     /**
      * Fires on message.part.updated.
@@ -75,14 +87,49 @@ export class PluginHooks {
         return [...new Set(matched)];
     }
     /** Check debounce: returns true if enough time has passed since last search for this category. */
-    canSearch(category) {
+    canSearch(category, suppressOn) {
+        if (this.suppressed)
+            return false;
+        let debounceMs = this.config.debounceMs;
+        if (suppressOn) {
+            this.recommendationCount++;
+            if (suppressOn.consecutiveDismissals >= DISMISSAL_SUPPRESS_THRESHOLD) {
+                this.suppressed = true;
+                return false;
+            }
+            if (suppressOn.acceptanceRate < LOW_ACCEPTANCE_THRESHOLD) {
+                debounceMs = 60_000;
+            }
+            else if (suppressOn.acceptanceRate > HIGH_ACCEPTANCE_THRESHOLD) {
+                debounceMs = 15_000;
+            }
+        }
         const now = Date.now();
         const last = this.lastSearchTime.get(category);
-        if (last === undefined || now - last > this.config.debounceMs) {
+        if (last === undefined || now - last > debounceMs) {
             this.lastSearchTime.set(category, now);
             return true;
         }
         return false;
+    }
+    recordAcceptance() {
+        this.acceptanceCount++;
+        this.consecutiveDismissals = 0;
+    }
+    recordDismissal() {
+        this.consecutiveDismissals++;
+    }
+    getRecommendationCount() {
+        return this.recommendationCount;
+    }
+    getAcceptanceCount() {
+        return this.acceptanceCount;
+    }
+    getConsecutiveDismissals() {
+        return this.consecutiveDismissals;
+    }
+    isSuppressed() {
+        return this.suppressed;
     }
     // ---- private helpers ----
     extractText(value) {
