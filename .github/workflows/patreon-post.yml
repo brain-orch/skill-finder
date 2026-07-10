@@ -1,0 +1,50 @@
+# Generates a Patreon post summarizing release changes.
+# Triggered only on published releases (not drafts or pre-releases).
+# The generator script uses git history to produce a Markdown post.
+name: Generate Patreon Post
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  generate-patreon-post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Generate Patreon post
+        run: node scripts/generate-patreon-post.mjs ${{ github.event.release.tag_name }}
+
+      # Optional: queue post to Papoa if PAPOA_API_KEY is configured.
+      # Step is skipped entirely when the secret is not set.
+      - name: Queue post to Papoa
+        if: env.PAPOA_API_KEY != ''
+        continue-on-error: true
+        env:
+          PAPOA_API_KEY: ${{ secrets.PAPOA_API_KEY }}
+        run: |
+          # Update versi ini saat Papoa rilis baru — cek https://github.com/Shynixn/PatreonPostApi/releases
+          PAPOA_VERSION="v1.0.7"
+          curl -fsSL "https://github.com/Shynixn/PatreonPostApi/releases/download/${PAPOA_VERSION}/papoa-linux-x64" -o /tmp/papoa
+          chmod +x /tmp/papoa
+          /tmp/papoa post create \
+            --title "SkillFinder ${{ github.event.release.tag_name }} — Release Update" \
+            --content-file patreon-post.md \
+            --content-format text/markdown \
+            --output-format text/plain
+
+      - name: Upload Patreon post artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patreon-post
+          path: patreon-post.md
