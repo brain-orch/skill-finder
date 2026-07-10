@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.1] - 2026-07-10
+
+### Chore
+- **chore(deps)**: Update all major dependencies — TypeScript v7.0.2, Vitest v4.1.10, better-sqlite3 v12.11.1, @types/node v26.1.1, @opencode-ai/plugin v1.17.18
+- **chore(deps)**: Add `zod@4.1.8` as explicit direct dependency (pinned to match plugin version)
+- **chore(release)**: Create GitHub Releases for v2.0.0 and v2.1.0 (git tags existed but releases were missing)
+
+### Fixes
+- **fix(test)**: Add `vi.clearAllMocks()` to hooks test beforeEach for Vitest v4 mock isolation compatibility
+
 ## [2.1.0] - 2025-07-10
 
 ### Security

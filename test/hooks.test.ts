@@ -5,6 +5,7 @@ describe("PluginHooks", () => {
   let hooks: PluginHooks;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     hooks = new PluginHooks({ debounceMs: 1000 });
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
