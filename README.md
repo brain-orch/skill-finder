@@ -4,6 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![OpenCode Plugin](https://img.shields.io/badge/OpenCode-Plugin-green.svg)](https://opencode.ai)
 [![npm version](https://img.shields.io/npm/v/opencode-skill-finder.svg)](https://www.npmjs.com/package/opencode-skill-finder)
+[![Patreon](https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white)](https://patreon.com/Brain_orch)
 
 > **OpenCode plugin that watches your task context, searches 8 skill marketplaces, caches locally with FTS5, auto-recommends relevant skills, and provides a full CLI + programmatic API.**
 
@@ -389,6 +390,12 @@ Contributions are welcome! Please open an issue first to discuss what you'd like
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## Support
+
+Support SkillFinder development on [Patreon](https://patreon.com/Brain_orch)!
+
+[![Patreon](https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white)](https://patreon.com/Brain_orch)
 
 ## License
 

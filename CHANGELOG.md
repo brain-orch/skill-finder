@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.2.1] - 2026-07-10
+
+### Chore
+- **chore(readme)**: Add Patreon donation badge and Support section
+
 ## [2.2.0] - 2026-07-10
 
 ### Features

@@ -1,6 +1,6 @@
 {
   "name": "opencode-skill-finder",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "OpenCode plugin that watches your task context, searches 7 skill marketplaces, caches locally with FTS5, and auto-recommends relevant skills.",
   "type": "module",
   "main": "./dist/index.js",
