@@ -24,6 +24,12 @@
     "postinstall": "node ./scripts/postinstall.mjs",
     "postupdate": "node ./scripts/postinstall.mjs"
   },
+  "files": [
+    "dist/",
+    "scripts/postinstall.mjs",
+    "scripts/platform-profiles.mjs",
+    "CHANGELOG.md"
+  ],
   "keywords": [
     "opencode",
     "plugin",
