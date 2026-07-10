@@ -1,6 +1,7 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { validateSlug, validateOwner } from "../../safe-slug.js";
 function mapSkill(skill) {
     return {
         id: `agentskillsh:${skill.slug}`,
@@ -76,19 +77,19 @@ export class AgentSkillsMarketplace {
         if (!owner) {
             throw new Error(`Could not determine owner for skill: ${identifier}`);
         }
+        // Validate slug components to prevent injection
+        validateSlug(name);
+        if (owner)
+            validateOwner(owner);
         const skillDir = path.join(targetDir, "agentskillsh", slug);
         fs.mkdirSync(skillDir, { recursive: true });
-        const cmd = `npx @agentskill.sh/cli@latest setup ${owner}/${name}`;
-        try {
-            execSync(cmd, {
-                cwd: skillDir,
-                stdio: "pipe",
-                timeout: 30_000,
-            });
-        }
-        catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            throw new Error(`Failed to install skill "${identifier}": ${message}`);
+        const result = spawnSync('npx', ['@agentskill.sh/cli@latest', 'setup', `${owner}/${name}`], {
+            cwd: skillDir,
+            stdio: 'pipe',
+            timeout: 30_000,
+        });
+        if (result.status !== 0 || result.error) {
+            throw new Error(`Failed to install skill "${identifier}": ${result.error?.message || `exit code ${result.status}`}`);
         }
         // Write SKILL.md with basic metadata
         const skillMd = `# ${name}
@@ -100,7 +101,7 @@ Installed via: skill-finder
 ## Install Command
 
 \`\`\`bash
-${cmd}
+npx @agentskill.sh/cli@latest setup ${owner}/${name}
 \`\`\`
 `;
         const skillMdPath = path.join(skillDir, "SKILL.md");

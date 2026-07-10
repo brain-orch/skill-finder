@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SkillShMarketplace } from "../../../src/registry/adapters/skillssh-adapter.js";
+import { spawnSync } from "node:child_process";
+
+vi.mock("node:child_process", () => ({
+  spawnSync: vi.fn(),
+}));
 
 const MOCK_SEARCH_RESPONSE = {
   data: [
@@ -310,6 +315,63 @@ describe("SkillShMarketplace", () => {
       const result = await adapter.getSkillInfo("pdf-tools");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("install", () => {
+    const spawnSyncMock = vi.mocked(spawnSync);
+
+    beforeEach(() => {
+      spawnSyncMock.mockReset();
+    });
+
+    it("calls spawnSync with correct args for valid source/slug", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        error: undefined,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from(""),
+        pid: 1,
+        output: [],
+        signal: null,
+      });
+
+      const result = await adapter.install("user/repo/my-skill", "/tmp/skills");
+
+      expect(spawnSyncMock).toHaveBeenCalledOnce();
+      expect(spawnSyncMock).toHaveBeenCalledWith(
+        "npx",
+        ["-y", "skills", "add", "https://github.com/user/repo", "--skill", "my-skill"],
+        expect.objectContaining({ cwd: expect.stringMatching(/skillssh[\\/]my-skill/), stdio: "pipe", timeout: 30_000 }),
+      );
+      expect(result.path).toMatch(/skillssh[\\/]my-skill/);
+      expect(result.files).toContain("SKILL.md");
+    });
+
+    it("throws on invalid slug before spawnSync call", async () => {
+      await expect(adapter.install("user/repo/../../etc/passwd", "/tmp/skills")).rejects.toThrow();
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("throws on invalid source with special chars before spawnSync call", async () => {
+      await expect(adapter.install("user/repo$(evil)/my-skill", "/tmp/skills")).rejects.toThrow();
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("throws Failed to install skill on non-zero exit", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: 1,
+        error: undefined,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from("error"),
+        pid: 1,
+        output: [],
+        signal: null,
+      });
+
+      await expect(adapter.install("user/repo/my-skill", "/tmp/skills")).rejects.toThrow(
+        /Failed to install skill/,
+      );
     });
   });
 });

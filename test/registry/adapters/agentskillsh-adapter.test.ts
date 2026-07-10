@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AgentSkillsMarketplace } from "../../../src/registry/adapters/agentskillsh-adapter.js";
+import * as childProcess from "node:child_process";
+
+vi.mock("node:child_process", () => ({
+  spawnSync: vi.fn(),
+}));
 
 const MOCK_SEARCH_RESPONSE = {
   data: [
@@ -316,6 +321,13 @@ describe("AgentSkillsMarketplace", () => {
   });
 
   describe("install", () => {
+    let spawnSyncSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      spawnSyncSpy = vi.mocked(childProcess.spawnSync);
+      spawnSyncSpy.mockReset();
+    });
+
     it("throws error when skill not found", async () => {
       fetchSpy.mockResolvedValue({
         ok: true,
@@ -346,6 +358,55 @@ describe("AgentSkillsMarketplace", () => {
       await expect(
         adapter.install("agentskillsh:no-owner", "/tmp/skills"),
       ).rejects.toThrow("Could not determine owner");
+    });
+
+    it("valid slug calls spawnSync with correct args", async () => {
+      spawnSyncSpy.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+
+      await adapter.install("agentskillsh:alice/pdf-tools", "/tmp/skills");
+
+      expect(spawnSyncSpy).toHaveBeenCalledOnce();
+      expect(spawnSyncSpy).toHaveBeenCalledWith(
+        "npx",
+        ["@agentskill.sh/cli@latest", "setup", "alice/pdf-tools"],
+        expect.objectContaining({ cwd: expect.stringMatching(/agentskillsh[\\/]alice[\\/]pdf-tools/), stdio: "pipe", timeout: 30000 }),
+      );
+    });
+
+    it("invalid slug throws before spawnSync call", async () => {
+      spawnSyncSpy.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+
+      await expect(
+        adapter.install("agentskillsh:../../../etc/passwd", "/tmp/skills"),
+      ).rejects.toThrow();
+
+      expect(spawnSyncSpy).not.toHaveBeenCalled();
+    });
+
+    it("spawnSync non-zero exit throws Failed to install skill", async () => {
+      spawnSyncSpy.mockReturnValue({
+        status: 1,
+        stdout: "",
+        stderr: "error occurred",
+        error: undefined,
+      });
+
+      await expect(
+        adapter.install("agentskillsh:alice/pdf-tools", "/tmp/skills"),
+      ).rejects.toThrow("Failed to install skill");
+    });
+
+    it("spawnSync error object throws Failed to install skill", async () => {
+      spawnSyncSpy.mockReturnValue({
+        status: 0,
+        stdout: "",
+        stderr: "",
+        error: new Error("spawn failed"),
+      });
+
+      await expect(
+        adapter.install("agentskillsh:alice/pdf-tools", "/tmp/skills"),
+      ).rejects.toThrow("Failed to install skill");
     });
   });
 

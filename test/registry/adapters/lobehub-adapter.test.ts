@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { SkillSearchResult } from "../../../src/types.js";
 
 vi.mock("node:child_process", () => ({
-  execSync: vi.fn(),
+  spawnSync: vi.fn(),
 }));
 
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { LobeHubMarketplace } from "../../../src/registry/adapters/lobehub-adapter.js";
 
-const mockExecSync = vi.mocked(execSync);
+const mockSpawnSync = vi.mocked(spawnSync);
 
 function makeCliResponse(items: Record<string, unknown>[]) {
   return JSON.stringify({ items });
@@ -42,7 +42,7 @@ describe("LobeHubMarketplace", () => {
       },
     ]);
 
-    mockExecSync.mockReturnValue(cliOutput);
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: cliOutput, stderr: "" });
 
     const results = await adapter.search("pdf");
 
@@ -71,9 +71,7 @@ describe("LobeHubMarketplace", () => {
   });
 
   it("search returns [] on exec error", async () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error("command not found");
-    });
+    mockSpawnSync.mockReturnValue({ status: 1, stdout: "", stderr: "command not found" });
 
     const results = await adapter.search("pdf");
     expect(results).toEqual([]);
@@ -82,7 +80,7 @@ describe("LobeHubMarketplace", () => {
   it("search returns [] for empty query", async () => {
     const results = await adapter.search("");
     expect(results).toEqual([]);
-    expect(mockExecSync).not.toHaveBeenCalled();
+    expect(mockSpawnSync).not.toHaveBeenCalled();
   });
 
   it("isAvailable returns true", () => {
@@ -97,7 +95,7 @@ describe("LobeHubMarketplace", () => {
       },
     ]);
 
-    mockExecSync.mockReturnValue(cliOutput);
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: cliOutput, stderr: "" });
 
     const result = await adapter.getSkillInfo("lobehub:nonexistent");
     expect(result).toBeNull();
@@ -112,7 +110,7 @@ describe("LobeHubMarketplace", () => {
       },
     ]);
 
-    mockExecSync.mockReturnValue(cliOutput);
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: cliOutput, stderr: "" });
 
     const result = await adapter.getSkillInfo("lobehub:pdf-tools");
     expect(result).not.toBeNull();
@@ -126,7 +124,7 @@ describe("LobeHubMarketplace", () => {
       { name: "skill-c", description: "C", category: "pdf" },
     ]);
 
-    mockExecSync.mockReturnValue(cliOutput);
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: cliOutput, stderr: "" });
 
     const results = await adapter.search("skill", { category: "pdf" });
     expect(results).toHaveLength(2);
@@ -140,7 +138,7 @@ describe("LobeHubMarketplace", () => {
       { name: "c", description: "C" },
     ]);
 
-    mockExecSync.mockReturnValue(cliOutput);
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: cliOutput, stderr: "" });
 
     const results = await adapter.search("a", { limit: 2 });
     expect(results).toHaveLength(2);

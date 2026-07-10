@@ -1,6 +1,7 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { validateSlug } from "../../safe-slug.js";
 export class ClawHubMarketplace {
     name = "clawhub";
     async search(query, options) {
@@ -76,19 +77,16 @@ export class ClawHubMarketplace {
             installArg = identifier;
             name = identifier;
         }
+        validateSlug(name);
         const skillDir = path.join(targetDir, "clawhub", name);
         fs.mkdirSync(skillDir, { recursive: true });
-        const cmd = `clawhub install ${installArg}`;
-        try {
-            execSync(cmd, {
-                encoding: "utf-8",
-                timeout: 30_000,
-                stdio: ["pipe", "pipe", "pipe"],
-            });
-        }
-        catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            throw new Error(`Failed to install skill "${identifier}": ${message}`);
+        const result = spawnSync('clawhub', ['install', installArg], {
+            encoding: 'utf-8',
+            timeout: 30_000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        if (result.status !== 0 || result.error) {
+            throw new Error(`Failed to install skill "${identifier}": ${result.error?.message || `exit code ${result.status}`}`);
         }
         // Write SKILL.md with basic metadata
         const skillMd = `# ${name}
@@ -100,7 +98,7 @@ Installed via: skill-finder
 ## Install Command
 
 \`\`\`bash
-${cmd}
+clawhub install ${installArg}
 \`\`\`
 `;
         fs.writeFileSync(path.join(skillDir, "SKILL.md"), skillMd, "utf-8");

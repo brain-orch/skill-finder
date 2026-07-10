@@ -1,7 +1,8 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SkillSearchResult, SkillMarketplace } from "../../types.js";
+import { validateSlug } from "../../safe-slug.js";
 
 interface LobeHubItem {
   identifier?: string;
@@ -30,12 +31,13 @@ export class LobeHubMarketplace implements SkillMarketplace {
     if (!query) return [];
 
     try {
-      const cmd = `npx -y @lobehub/market-cli skills search --q "${query}" --output json`;
-      const output = execSync(cmd, {
+      const result = spawnSync("npx", ["-y", "@lobehub/market-cli", "skills", "search", "--q", query, "--output", "json"], {
         encoding: "utf-8",
         timeout: 15_000,
         stdio: ["pipe", "pipe", "pipe"],
       });
+      if (result.status !== 0) return [];
+      const output = result.stdout;
 
       const parsed: LobeHubCliResponse = JSON.parse(output);
       const items = Array.isArray(parsed.items) ? parsed.items : [];
@@ -82,20 +84,18 @@ export class LobeHubMarketplace implements SkillMarketplace {
     identifier: string,
     targetDir: string,
   ): Promise<{ path: string; files: string[] }> {
-    const cmd = `npx -y @lobehub/market-cli skills install ${identifier} --agent codex`;
-
-    try {
-      execSync(cmd, {
-        encoding: "utf-8",
-        timeout: 30_000,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to install skill "${identifier}": ${message}`);
+    const result = spawnSync("npx", ["-y", "@lobehub/market-cli", "skills", "install", identifier, "--agent", "codex"], {
+      encoding: "utf-8",
+      timeout: 30_000,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    if (result.status !== 0) {
+      throw new Error(`Failed to install skill "${identifier}"`);
     }
 
-    const skillDir = path.join(targetDir, "lobehub", identifier);
+    const name = identifier.startsWith("lobehub:") ? identifier.slice("lobehub:".length) : identifier;
+    validateSlug(name);
+    const skillDir = path.join(targetDir, "lobehub", name);
     fs.mkdirSync(skillDir, { recursive: true });
 
     const files = ["SKILL.md"];

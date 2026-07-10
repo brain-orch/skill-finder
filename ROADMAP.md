@@ -11,7 +11,7 @@ SkillFinder development milestones and future plans.
 - Auto-recommendation engine
 - Plugin hooks for OpenCode
 
-## v1.1.0 (In Development)
+## v1.1.0 (Released)
 
 - Real marketplace adapters:
   - LobeHub adapter (wraps @lobehub/market-cli)
@@ -25,16 +25,27 @@ SkillFinder development milestones and future plans.
   - info: fetches skill details
 - ROADMAP.md documentation
 
-## v1.2.0 (Planned)
+## v2.0.0 (Released)
+
+- Intent-Based Search with automatic category expansion
+- Trust Scoring (A-F grade) with deep security analysis
+- Version Locking with semver ranges and changelog tracking
+- Dynamic Agent Targets for custom install directories
+- Plan Sharing — export/import skill collections as JSON
+- Multi-marketplace aggregator with dedup and quality scoring
+- Cross-platform installers (npm, PowerShell, bash, bun, pnpm, yarn)
+
+## v2.1.0 (Released)
+
+- **Security Hardening**: All 5 marketplace adapters migrated from `execSync` to `spawnSync` + arg arrays
+- **Input Validation**: New `safe-slug.ts` module with allowlist regex for slug, owner, and source
+- **Platform Selection**: Interactive platform detection for OpenCode/Claude Code/Cursor installers
+- Zero `execSync` remaining in adapter layer
+
+## v2.2.0 (Planned)
 
 - CLI implementation (currently throws "Not implemented")
 - Auto-recommendation improvements
-- Marketplace coverage expansion (SkillsMP, MCP Servers, AwesomeSkill, ClawHub)
+- Marketplace coverage expansion
 - Better error handling and retries
-
-## v2.0.0 (Future)
-
 - API for 3rd-party integrations
-- Advanced caching with invalidation
-- Web UI dashboard for skill management
-- Multi-agent skill sharing

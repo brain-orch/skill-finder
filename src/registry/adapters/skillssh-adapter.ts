@@ -1,7 +1,11 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SkillSearchResult, SkillMarketplace } from "../../types.js";
+import { validateSlug } from "../../safe-slug.js";
+
+const SOURCE_REGEX = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/;
+const SOURCE_MAX = 200;
 
 interface SkillsShSkill {
   id: string;
@@ -105,7 +109,9 @@ export class SkillShMarketplace implements SkillMarketplace {
       const match = info.installCommand.match(/github\.com\/([^/]+)\//);
       source = match?.[1];
     } else if (identifier.includes("/")) {
-      [source, slug] = identifier.split("/", 2);
+      const lastSlash = identifier.lastIndexOf("/");
+      source = identifier.slice(0, lastSlash);
+      slug = identifier.slice(lastSlash + 1);
     } else {
       slug = identifier;
       const info = await this.getSkillInfo(identifier);
@@ -120,22 +126,22 @@ export class SkillShMarketplace implements SkillMarketplace {
       throw new Error(`Could not determine source for skill: ${identifier}`);
     }
 
+    validateSlug(slug);
+    if (source.length === 0 || source.length > SOURCE_MAX || !SOURCE_REGEX.test(source)) {
+      throw new Error(`Invalid source: ${source}`);
+    }
+
     const skillDir = path.join(targetDir, "skillssh", slug);
     fs.mkdirSync(skillDir, { recursive: true });
 
-    // Run the skills.sh install command
     const installUrl = `https://github.com/${source}`;
-    const cmd = `npx -y skills add ${installUrl} --skill ${slug}`;
-
-    try {
-      execSync(cmd, {
-        cwd: skillDir,
-        stdio: "pipe",
-        timeout: 30_000,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to install skill "${identifier}": ${message}`);
+    const result = spawnSync("npx", ["-y", "skills", "add", installUrl, "--skill", slug], {
+      cwd: skillDir,
+      stdio: "pipe",
+      timeout: 30_000,
+    });
+    if (result.status !== 0 || result.error) {
+      throw new Error(`Failed to install skill "${identifier}": ${result.error?.message || `exit code ${result.status}`}`);
     }
 
     // Write SKILL.md with basic metadata
@@ -148,7 +154,7 @@ Installed via: skill-finder
 ## Install Command
 
 \`\`\`bash
-${cmd}
+npx -y skills add ${installUrl} --skill ${slug}
 \`\`\`
 `;
 

@@ -1,6 +1,7 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { validateSlug, validateOwner } from "../../safe-slug.js";
 export class SkillsMPMarketplace {
     name = "skillsmp";
     async search(query, options) {
@@ -93,23 +94,22 @@ export class SkillsMPMarketplace {
             const match = info.installCommand.match(/@([^/]+)\//);
             owner = match?.[1];
         }
+        validateSlug(slug);
+        if (owner)
+            validateOwner(owner);
         if (!owner) {
             throw new Error(`Could not determine owner for skill: ${identifier}`);
         }
         const skillDir = path.join(targetDir, "skillsmp", slug);
         fs.mkdirSync(skillDir, { recursive: true });
         // Run the skillsmp install command
-        const cmd = `npx -y add-skill @${owner}/${slug}`;
-        try {
-            execSync(cmd, {
-                cwd: skillDir,
-                stdio: "pipe",
-                timeout: 30_000,
-            });
-        }
-        catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            throw new Error(`Failed to install skill "${identifier}": ${message}`);
+        const result = spawnSync('npx', ['-y', 'add-skill', `@${owner}/${slug}`], {
+            cwd: skillDir,
+            stdio: 'pipe',
+            timeout: 30_000,
+        });
+        if (result.status !== 0 || result.error) {
+            throw new Error(`Failed to install skill "${identifier}": ${result.error?.message || `exit code ${result.status}`}`);
         }
         // Write SKILL.md with basic metadata
         const skillMd = `# ${slug}
@@ -121,7 +121,7 @@ Installed via: skill-finder
 ## Install Command
 
 \`\`\`bash
-${cmd}
+npx -y add-skill @${owner}/${slug}
 \`\`\`
 `;
         const skillMdPath = path.join(skillDir, "SKILL.md");

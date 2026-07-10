@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ClawHubMarketplace } from "../../../src/registry/adapters/clawhub-adapter.js";
+import { spawnSync } from "node:child_process";
+import type { SpawnSyncReturns } from "node:child_process";
+
+vi.mock("node:child_process", () => ({
+  spawnSync: vi.fn(),
+}));
 
 const MOCK_SEARCH_RESPONSE = [
   {
@@ -306,6 +312,97 @@ describe("ClawHubMarketplace", () => {
       const result = await adapter.getSkillInfo("pdf-tools");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("install", () => {
+    const spawnSyncMock = vi.mocked(spawnSync);
+    const tmpDir = "/tmp/test-install";
+
+    beforeEach(() => {
+      spawnSyncMock.mockReset();
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        error: undefined,
+        stdout: "",
+        stderr: "",
+        pid: 123,
+        output: ["", "", ""],
+        signal: null,
+      } as SpawnSyncReturns<Buffer>);
+    });
+
+    it("calls spawnSync with correct args for @owner/slug", async () => {
+      const result = await adapter.install("@alice/pdf-tools", tmpDir);
+
+      expect(spawnSyncMock).toHaveBeenCalledOnce();
+      expect(spawnSyncMock).toHaveBeenCalledWith(
+        "clawhub",
+        ["install", "@alice/pdf-tools"],
+        {
+          encoding: "utf-8",
+          timeout: 30_000,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      );
+      expect(result.path).toContain("clawhub");
+      expect(result.files).toContain("SKILL.md");
+    });
+
+    it("calls spawnSync with correct args for clawhub:@owner/slug", async () => {
+      const result = await adapter.install("clawhub:@alice/pdf-tools", tmpDir);
+
+      expect(spawnSyncMock).toHaveBeenCalledOnce();
+      expect(spawnSyncMock).toHaveBeenCalledWith(
+        "clawhub",
+        ["install", "@alice/pdf-tools"],
+        {
+          encoding: "utf-8",
+          timeout: 30_000,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      );
+      expect(result.path).toContain("clawhub");
+      expect(result.files).toContain("SKILL.md");
+    });
+
+    it("throws on invalid name with shell characters", async () => {
+      await expect(
+        adapter.install("@alice/malicious;rm -rf /", tmpDir),
+      ).rejects.toThrow();
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("throws on spawnSync non-zero exit", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: 1,
+        error: undefined,
+        stdout: "",
+        stderr: "install failed",
+        pid: 123,
+        output: ["", "", ""],
+        signal: null,
+      } as SpawnSyncReturns<Buffer>);
+
+      await expect(
+        adapter.install("@alice/failing-skill", tmpDir),
+      ).rejects.toThrow("Failed to install skill");
+    });
+
+    it("throws on spawnSync error", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: null,
+        error: new Error("ENOENT: command not found"),
+        stdout: "",
+        stderr: "",
+        pid: 123,
+        output: ["", "", ""],
+        signal: null,
+      } as SpawnSyncReturns<Buffer>);
+
+      await expect(
+        adapter.install("@alice/failing-skill", tmpDir),
+      ).rejects.toThrow("Failed to install skill");
     });
   });
 });

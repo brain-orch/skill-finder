@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SkillsMPMarketplace } from "../../../src/registry/adapters/skillsmp-adapter.js";
 
+vi.mock("node:child_process", () => ({
+  spawnSync: vi.fn(),
+}));
+
+import { spawnSync } from "node:child_process";
+const spawnSyncMock = vi.mocked(spawnSync);
+
 const MOCK_SEARCH_RESPONSE = {
   data: {
     skills: [
@@ -42,6 +49,7 @@ describe("SkillsMPMarketplace", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    spawnSyncMock.mockReset();
   });
 
   describe("isAvailable", () => {
@@ -338,6 +346,93 @@ describe("SkillsMPMarketplace", () => {
       const result = await adapter.getSkillInfo("pdf-tools");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("install", () => {
+    it("calls spawnSync with correct args for valid @owner/slug identifier", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => MOCK_SEARCH_RESPONSE,
+      });
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from(""),
+      });
+
+      const result = await adapter.install("skillsmp:@alice/pdf-tools", "/tmp/target");
+
+      expect(spawnSyncMock).toHaveBeenCalledOnce();
+      expect(spawnSyncMock).toHaveBeenCalledWith(
+        "npx",
+        ["-y", "add-skill", "@alice/pdf-tools"],
+        expect.objectContaining({ cwd: expect.stringContaining("pdf-tools"), stdio: "pipe", timeout: 30_000 }),
+      );
+      expect(result.path).toContain("pdf-tools");
+      expect(result.files).toEqual(["SKILL.md"]);
+    });
+
+    it("throws on invalid slug before spawnSync call", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from(""),
+      });
+
+      await expect(
+        adapter.install("skillsmp:@alice/../../../etc/passwd", "/tmp/target"),
+      ).rejects.toThrow(/Invalid slug/);
+
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("throws on invalid owner before spawnSync call", async () => {
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from(""),
+      });
+
+      await expect(
+        adapter.install("skillsmp:@bad owner!/valid-slug", "/tmp/target"),
+      ).rejects.toThrow(/Invalid owner/);
+
+      expect(spawnSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("throws 'Failed to install skill' when spawnSync returns non-zero exit", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => MOCK_SEARCH_RESPONSE,
+      });
+      spawnSyncMock.mockReturnValue({
+        status: 1,
+        stdout: Buffer.from(""),
+        stderr: Buffer.from("error output"),
+      });
+
+      await expect(
+        adapter.install("skillsmp:@alice/pdf-tools", "/tmp/target"),
+      ).rejects.toThrow(/Failed to install skill/);
+    });
+
+    it("succeeds with skillsmp:@owner/valid-slug identifier", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => MOCK_SEARCH_RESPONSE,
+      });
+      spawnSyncMock.mockReturnValue({
+        status: 0,
+        stdout: Buffer.from("installed"),
+        stderr: Buffer.from(""),
+      });
+
+      const result = await adapter.install("skillsmp:@alice/pdf-tools", "/tmp/target");
+
+      expect(result.path).toContain("skillsmp");
+      expect(result.path).toContain("pdf-tools");
+      expect(result.files).toContain("SKILL.md");
     });
   });
 
