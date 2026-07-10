@@ -4,6 +4,9 @@ node_modules/
 .tmp/
 .codegraph/
 .omo/
+
+# Generated output
+patreon-post.md
 # dist/ is checked in so npm install from GitHub works without building
 
 # Dev/agent tooling (not for production)

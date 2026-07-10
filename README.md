@@ -397,6 +397,38 @@ Support SkillFinder development on [Patreon](https://patreon.com/Brain_orch)!
 
 [![Patreon](https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white)](https://patreon.com/Brain_orch)
 
+## Patreon Auto-Post
+
+Every new GitHub Release automatically generates a Patreon post, making it easy to keep your supporters updated.
+
+### Optional Papoa Setup
+
+For fully automated posting, you can use Papoa:
+
+1. Register at [papoa.shynixn.com](https://papoa.shynixn.com) to get an API key
+2. Add `PAPOA_API_KEY` to your GitHub repository secrets:
+   - Go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+   - Name: `PAPOA_API_KEY`
+   - Value: your Papoa API key
+3. Install the Chrome extension on a browser logged into Patreon
+4. Enable "Background fetch" and "Auto-submit" in extension settings
+
+### Manual (without Papoa)
+
+If you prefer not to use Papoa, the generated post is available as a workflow artifact:
+
+1. Navigate to **Actions** → select the workflow run
+2. Go to **Artifacts** → download `patreon-post.md`
+3. Copy-paste the content to Patreon
+
+### Required Secrets
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `PAPOA_API_KEY` | No (optional) | Papoa API key for auto-posting to Patreon |
+
+For more information, see the [Papoa GitHub repository](https://github.com/Shynixn/PatreonPostApi).
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
