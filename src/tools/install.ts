@@ -12,6 +12,7 @@ import {
   probeAgentDirs,
   type AgentTarget,
 } from "../installer/agent-targets.js";
+import { TrustScorer } from "../scoring/trust-scorer.js";
 
 const VALID_TARGETS = ["opencode", "claude", "cursor", "codex", "all", "auto", "detect"] as const;
 
@@ -165,11 +166,19 @@ export const installTool = tool({
         let changelog = "unknown";
         let breaking = false;
         let dependencies: string[] = [];
+        let computedTrustGrade: string | undefined = undefined;
         
         try {
           const skillInfo = await adapter.getSkillInfo(identifier);
           if (skillInfo) {
             // SkillSearchResult doesn't have version, so we default to "0.0.0"
+            try {
+              const trustScorer = new TrustScorer();
+              const trustResult = trustScorer.score(skillInfo);
+              computedTrustGrade = trustResult.grade;
+            } catch {
+              // Graceful fallback - don't fail install if trust scoring fails
+            }
           }
         } catch (err) {
           console.warn(
@@ -186,6 +195,7 @@ export const installTool = tool({
           changelog,
           breaking,
           dependencies,
+          trustGrade: computedTrustGrade,
         }, installedTargets);
       } catch (err) {
         console.warn(

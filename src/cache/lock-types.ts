@@ -6,6 +6,7 @@ export interface LockMetadata {
   changelog?: string; // URL or "unknown"
   breaking?: boolean; // Whether latest update is breaking
   dependencies?: string[]; // Skill IDs this skill depends on
+  trustGrade?: string;
 }
 
 export interface LockedSkill {
@@ -20,6 +21,7 @@ export interface LockedSkill {
   changelog?: string; // URL or "unknown"
   breaking?: boolean; // Whether latest update is breaking
   dependencies?: string[]; // Skill IDs this skill depends on
+  trustGrade?: string;
 }
 
 export interface UpdateCheckResult {

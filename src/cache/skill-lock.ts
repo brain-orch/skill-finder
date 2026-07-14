@@ -58,6 +58,7 @@ export class SkillLockManager {
       changelog: metadata.changelog,
       breaking: metadata.breaking,
       dependencies: metadata.dependencies,
+      trustGrade: metadata.trustGrade,
     };
 
     this.writeLockfile(data);

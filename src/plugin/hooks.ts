@@ -5,6 +5,8 @@
  * applies debouncing to avoid redundant searches.
  */
 
+import { SkillUsageTracker, type SkillInfo } from "./usage-tracker.js";
+
 export interface HookConfig {
   debounceMs?: number; // Default: 30000 (30s per category)
 }
@@ -43,9 +45,12 @@ export class PluginHooks {
   private acceptanceCount = 0;
   private consecutiveDismissals = 0;
   private suppressed = false;
+  private announcedSkills: Set<string> = new Set();
+  private usageTracker: SkillUsageTracker;
 
-  constructor(config?: HookConfig) {
+  constructor(config?: HookConfig, usageTracker?: SkillUsageTracker) {
     this.config = { debounceMs: config?.debounceMs ?? DEFAULT_DEBOUNCE_MS };
+    this.usageTracker = usageTracker ?? new SkillUsageTracker();
   }
 
   /**
@@ -59,6 +64,7 @@ export class PluginHooks {
     this.acceptanceCount = 0;
     this.consecutiveDismissals = 0;
     this.suppressed = false;
+    this.announcedSkills.clear();
   }
 
   /**
@@ -93,6 +99,37 @@ export class PluginHooks {
       if (this.canSearch(cat)) {
         console.log(`skill-finder: detected category '${cat}' from tool`);
       }
+    }
+  }
+
+  /**
+   * Fires after every tool call.
+   * Detects if a skill file was read and sets the output title.
+   */
+  async onToolExecuteAfter(input: unknown, output: unknown): Promise<void> {
+    try {
+      const rec = input as Record<string, unknown> | undefined;
+      if (!rec) return;
+
+      const toolName = (rec.toolName ?? rec.tool ?? "") as string;
+      if (toolName !== "read") return;
+
+      const args = (rec.args ?? {}) as Record<string, unknown>;
+      const filePath = String(args.filePath ?? args.path ?? args.filename ?? "");
+      if (!filePath) return;
+
+      const info = this.usageTracker.detect(filePath);
+      if (!info) return;
+
+      if (this.announcedSkills.has(info.identifier)) return;
+      this.announcedSkills.add(info.identifier);
+
+      const out = output as Record<string, unknown> | undefined;
+      if (out) {
+        out.title = this.usageTracker.formatDisplay(info);
+      }
+    } catch {
+      // Silent — never break the tool pipeline
     }
   }
 
