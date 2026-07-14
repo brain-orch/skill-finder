@@ -1,37 +1,17 @@
-import type { SkillSearchResult } from "../types.js";
 import type { DetectedContext } from "./detector.js";
 import { SearchEngine } from "../search/index.js";
 import { SkillIndexer } from "../cache/indexer.js";
 import { MarketRegistry } from "../registry/index.js";
-import { QualityScorer } from "../scoring/quality.js";
 import { TrustScorer } from "../scoring/trust-scorer.js";
+import {
+  FeedbackManager,
+  scoreByCategoryMatch,
+  generateMatchReasons,
+  indexedToRecommendation,
+  toRecommendation,
+} from "./feedback.js";
 
-const qualityScorer = new QualityScorer();
-
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
-export interface Recommendation {
-  identifier: string;
-  name: string;
-  marketplace: string;
-  description: string;
-  score: number;
-  trustGrade: "A" | "B" | "C" | "D" | "F";
-  matchReasons: string[];
-  fromCache: boolean;
-  alreadyInstalled: boolean;
-}
-
-export interface RecommenderConfig {
-  maxResults?: number;            // Default: 3
-  localWeight?: number;           // Default: 0.6
-  networkWeight?: number;         // Default: 0.4
-  minScore?: number;              // Default: 0.3
-  installedSkillNames?: string[]; // Names of already installed skills
-  minTrustGrade?: "A" | "B" | "C" | "D" | "F";
-}
+export type { Recommendation, RecommenderConfig } from "./feedback.js";
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -50,18 +30,17 @@ const DEFAULT_MIN_TRUST_GRADE: "A" | "B" | "C" | "D" | "F" = "C";
 export class SkillRecommender {
   private searchEngine: SearchEngine;
   private indexer: SkillIndexer | null;
-  private config: Required<RecommenderConfig>;
+  private config: Required<import("./feedback.js").RecommenderConfig>;
   private registry: MarketRegistry;
   private installedSkillNames: Set<string>;
   private trustScorer = new TrustScorer();
-  private dismissedSkills: Set<string> = new Set();
-  private acceptedSkills: Set<string> = new Set();
+  private feedback = new FeedbackManager();
 
   constructor(
     searchEngine: SearchEngine,
     registry: MarketRegistry,
     indexer: SkillIndexer | null,
-    config?: RecommenderConfig,
+    config?: import("./feedback.js").RecommenderConfig,
   ) {
     this.searchEngine = searchEngine;
     this.registry = registry;
@@ -83,7 +62,7 @@ export class SkillRecommender {
   // Public API
   // -----------------------------------------------------------------------
 
-  async recommend(context: DetectedContext): Promise<Recommendation[]> {
+  async recommend(context: DetectedContext): Promise<import("./feedback.js").Recommendation[]> {
     const { categories } = context;
 
     // Empty categories → nothing to recommend
@@ -110,28 +89,25 @@ export class SkillRecommender {
   // -----------------------------------------------------------------------
 
   acceptSkill(identifier: string): void {
-    this.acceptedSkills.add(identifier);
-    this.dismissedSkills.delete(identifier);
+    this.feedback.acceptSkill(identifier);
   }
 
   dismissSkill(identifier: string): void {
-    this.dismissedSkills.add(identifier);
-    this.acceptedSkills.delete(identifier);
+    this.feedback.dismissSkill(identifier);
   }
 
   resetFeedback(): void {
-    this.dismissedSkills.clear();
-    this.acceptedSkills.clear();
+    this.feedback.resetFeedback();
   }
 
   // -----------------------------------------------------------------------
   // Private: local search
   // -----------------------------------------------------------------------
 
-  private async searchLocal(categories: string[]): Promise<Recommendation[]> {
+  private async searchLocal(categories: string[]): Promise<import("./feedback.js").Recommendation[]> {
     if (!this.indexer) return [];
 
-    const results: Recommendation[] = [];
+    const results: import("./feedback.js").Recommendation[] = [];
     const seenIds = new Set<string>();
 
     for (const category of categories) {
@@ -148,7 +124,20 @@ export class SkillRecommender {
         for (const skill of indexed) {
           if (seenIds.has(skill.id)) continue;
           seenIds.add(skill.id);
-          const rec = this.indexedToRecommendation(skill, categories);
+          const grade = this.trustScorer.score({
+            id: skill.id,
+            name: skill.name,
+            description: skill.description,
+            marketplace: skill.marketplace as any,
+            category: skill.category,
+            triggers: skill.triggers,
+            installCount: skill.installCount,
+            stars: skill.stars,
+            installCommand: "",
+            homepageUrl: "",
+            verified: false,
+          }).grade;
+          const rec = indexedToRecommendation(skill, categories, grade);
           results.push(rec);
         }
       }
@@ -161,8 +150,8 @@ export class SkillRecommender {
   // Private: network search
   // -----------------------------------------------------------------------
 
-  private async searchNetwork(categories: string[]): Promise<Recommendation[]> {
-    const results: Recommendation[] = [];
+  private async searchNetwork(categories: string[]): Promise<import("./feedback.js").Recommendation[]> {
+    const results: import("./feedback.js").Recommendation[] = [];
 
     for (const category of categories) {
       try {
@@ -176,7 +165,8 @@ export class SkillRecommender {
             ? this.indexer.searchLocal(skill.name, 1).length > 0
             : false;
 
-          const rec = this.toRecommendation(skill, cached, categories);
+          const grade = this.trustScorer.score(skill).grade;
+          const rec = toRecommendation(skill, cached, categories, grade);
           results.push(rec);
         }
       } catch (err) {
@@ -195,14 +185,14 @@ export class SkillRecommender {
   // -----------------------------------------------------------------------
 
   private mergeResults(
-    local: Recommendation[],
-    network: Recommendation[],
-  ): Recommendation[] {
+    local: import("./feedback.js").Recommendation[],
+    network: import("./feedback.js").Recommendation[],
+  ): import("./feedback.js").Recommendation[] {
     // Combine: local first (preferred on dedup)
     const combined = [...local, ...network];
 
     // Deduplicate by identifier — keep the local copy if same
-    const seen = new Map<string, Recommendation>();
+    const seen = new Map<string, import("./feedback.js").Recommendation>();
     for (const rec of combined) {
       const existing = seen.get(rec.identifier);
       if (!existing) {
@@ -228,13 +218,13 @@ export class SkillRecommender {
   // Private: filter
   // -----------------------------------------------------------------------
 
-  private filterResults(results: Recommendation[]): Recommendation[] {
+  private filterResults(results: import("./feedback.js").Recommendation[]): import("./feedback.js").Recommendation[] {
     const gradeOrder = ["A", "B", "C", "D", "F"];
     const minIndex = gradeOrder.indexOf(this.config.minTrustGrade);
 
     return results
       .filter((r) => !this.installedSkillNames.has(r.name.toLowerCase()))
-      .filter((r) => !this.dismissedSkills.has(r.identifier))
+      .filter((r) => !this.feedback.isDismissed(r.identifier))
       .filter((r) => r.score >= this.config.minScore)
       .filter((r) => gradeOrder.indexOf(r.trustGrade) <= minIndex)
       .sort((a, b) => {
@@ -245,177 +235,13 @@ export class SkillRecommender {
       .slice(0, this.config.maxResults);
   }
 
-  private deduplicateByIdentifier(results: Recommendation[]): Recommendation[] {
-    const seen = new Map<string, Recommendation>();
+  private deduplicateByIdentifier(results: import("./feedback.js").Recommendation[]): import("./feedback.js").Recommendation[] {
+    const seen = new Map<string, import("./feedback.js").Recommendation>();
     for (const rec of results) {
       if (!seen.has(rec.identifier)) {
         seen.set(rec.identifier, rec);
       }
     }
     return Array.from(seen.values());
-  }
-
-  // -----------------------------------------------------------------------
-  // Private: convert indexed skill to Recommendation
-  // -----------------------------------------------------------------------
-
-  private indexedToRecommendation(
-    skill: { id: string; name: string; description: string; marketplace: string; category: string | null; triggers: string[]; installCount: number; stars: number },
-    categories: string[],
-  ): Recommendation {
-    const skillSearch: SkillSearchResult = {
-      id: skill.id,
-      name: skill.name,
-      description: skill.description,
-      marketplace: skill.marketplace as SkillSearchResult["marketplace"],
-      category: skill.category,
-      triggers: skill.triggers,
-      installCount: skill.installCount,
-      stars: skill.stars,
-      installCommand: "",
-      homepageUrl: "",
-      verified: false,
-    };
-
-    return {
-      identifier: skill.id,
-      name: skill.name,
-      marketplace: skill.marketplace,
-      description: skill.description,
-      score: this.scoreByCategoryMatch(skillSearch, categories),
-      trustGrade: this.trustScorer.score(skillSearch).grade,
-      matchReasons: this.generateMatchReasons(skillSearch, categories),
-      fromCache: true,
-      alreadyInstalled: false,
-    };
-  }
-
-  // -----------------------------------------------------------------------
-  // Private: convert SkillSearchResult to Recommendation
-  // -----------------------------------------------------------------------
-
-  private toRecommendation(
-    skill: SkillSearchResult,
-    fromCache: boolean,
-    categories: string[],
-  ): Recommendation {
-    return {
-      identifier: skill.id,
-      name: skill.name,
-      marketplace: skill.marketplace,
-      description: skill.description,
-      score: this.scoreByCategoryMatch(skill, categories),
-      trustGrade: this.trustScorer.score(skill).grade,
-      matchReasons: this.generateMatchReasons(skill, categories),
-      fromCache,
-      alreadyInstalled: false,
-    };
-  }
-
-  // -----------------------------------------------------------------------
-  // Private: scoring
-  // -----------------------------------------------------------------------
-
-  private scoreByCategoryMatch(
-    skill: SkillSearchResult,
-    categories: string[],
-  ): number {
-    let score = 0;
-
-    // Category match: +0.25
-    if (skill.category) {
-      const skillCat = skill.category.toLowerCase();
-      for (const cat of categories) {
-        if (skillCat === cat.toLowerCase()) {
-          score += 0.25;
-          break;
-        }
-      }
-    }
-
-    // Trigger match: +0.15 each (max 0.45)
-    let triggerBonus = 0;
-    for (const trigger of skill.triggers) {
-      const tLower = trigger.toLowerCase();
-      for (const cat of categories) {
-        if (tLower.includes(cat.toLowerCase()) || cat.toLowerCase().includes(tLower)) {
-          triggerBonus += 0.15;
-          break;
-        }
-      }
-    }
-    score += Math.min(triggerBonus, 0.45);
-
-    // Name/description keyword match: +0.1
-    const nameLower = skill.name.toLowerCase();
-    const descLower = skill.description.toLowerCase();
-    for (const cat of categories) {
-      const catLower = cat.toLowerCase();
-      if (nameLower.includes(catLower) || descLower.includes(catLower)) {
-        score += 0.1;
-        break;
-      }
-    }
-
-    // Quality score: 0–0.2 based on quality score
-    const qualityBonus = qualityScorer.score(skill) * 0.2;  // max 0.2
-    score += qualityBonus;
-
-    // Cap at 1.0
-    return Math.min(Math.round(score * 100) / 100, 1.0);
-  }
-
-  // -----------------------------------------------------------------------
-  // Private: match reasons
-  // -----------------------------------------------------------------------
-
-  private generateMatchReasons(
-    skill: SkillSearchResult,
-    categories: string[],
-  ): string[] {
-    const reasons: string[] = [];
-
-    // Category match
-    if (skill.category) {
-      const skillCat = skill.category.toLowerCase();
-      for (const cat of categories) {
-        if (skillCat === cat.toLowerCase()) {
-          reasons.push(`Matches '${cat}' task category`);
-          break;
-        }
-      }
-    }
-
-    // Trigger matches
-    for (const trigger of skill.triggers) {
-      const tLower = trigger.toLowerCase();
-      for (const cat of categories) {
-        if (tLower.includes(cat.toLowerCase()) || cat.toLowerCase().includes(tLower)) {
-          reasons.push(`Has trigger '${trigger}' matching your task`);
-          break;
-        }
-      }
-    }
-
-    // Quality score
-    const qScore = qualityScorer.score(skill);
-    if (qScore > 0.7) {
-      reasons.push(`Quality score: ${Math.round(qScore * 100)}%`);
-    }
-
-    // Verified
-    if (skill.verified) {
-      reasons.push(`Verified by ${skill.marketplace}`);
-    }
-
-    // Stars
-    if (skill.stars > 0) {
-      reasons.push(`Star rating: ${skill.stars}/5`);
-    }
-
-    // Cache status
-    // (handled externally via fromCache field, not as a reason string)
-
-    return reasons;
   }
 }
