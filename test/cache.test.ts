@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { CacheManager } from "../src/cache/index.js";
 import { SkillIndexer } from "../src/cache/indexer.js";
+import { sanitizeFTS5 } from "../src/cache/fts5-utils.js";
 import type { IndexedSkill } from "../src/cache/indexer.js";
 import type { SkillSearchResult, SkillMarketplace } from "../src/types.js";
 
@@ -351,19 +352,19 @@ describe("SkillIndexer", () => {
 
   /* 5 */
   it("sanitizeFTS5 wraps tokens in quotes", () => {
-    const result = indexer.sanitizeFTS5("hello world");
+    const result = sanitizeFTS5("hello world");
     expect(result).toBe('"hello" "world"');
   });
 
   /* 6 */
   it("sanitizeFTS5 removes FTS5 operators", () => {
-    const result = indexer.sanitizeFTS5("hello AND world OR test NOT near");
+    const result = sanitizeFTS5("hello AND world OR test NOT near");
     expect(result).toBe('"hello" "world" "test"');
   });
 
   /* 7 */
   it("sanitizeFTS5 escapes inner quotes", () => {
-    const result = indexer.sanitizeFTS5('test "quoted" value');
+    const result = sanitizeFTS5('test "quoted" value');
     // "quoted" → escape inner " to "" → ""quoted"" → wrap → """""""quoted""""""""
     // Wait, let me trace: token = '"quoted"', escaped = '""quoted""', wrapped = '""""quoted""""'
     expect(result).toBe('"test" """quoted""" "value"');
@@ -447,20 +448,20 @@ describe("SkillIndexer", () => {
 
   /* 13 */
   it("sanitizeFTS5 handles empty query", () => {
-    const result = indexer.sanitizeFTS5("");
+    const result = sanitizeFTS5("");
     expect(result).toBe("");
   });
 
   /* 14 */
   it("sanitizeFTS5 handles wildcard operator", () => {
-    const result = indexer.sanitizeFTS5("test * value");
+    const result = sanitizeFTS5("test * value");
     expect(result).toBe('"test" "value"');
   });
 
   /* 15 */
   it("sanitizeFTS5 handles parentheses", () => {
     // Bare ( and ) are removed; (group) is a single token, not removed
-    const result = indexer.sanitizeFTS5("test ( ) value");
+    const result = sanitizeFTS5("test ( ) value");
     expect(result).toBe('"test" "value"');
   });
 

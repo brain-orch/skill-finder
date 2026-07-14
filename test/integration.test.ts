@@ -6,6 +6,7 @@ import { MarketRegistry } from "../src/registry/index.js";
 import { MockMarketplace } from "../src/registry/mock.js";
 import { CacheManager } from "../src/cache/index.js";
 import { SkillIndexer } from "../src/cache/indexer.js";
+import { sanitizeFTS5 } from "../src/cache/fts5-utils.js";
 import { SkillRecommender } from "../src/plugin/recommender.js";
 import { SkillActivator } from "../src/activation.js";
 import { SearchEngine } from "../src/search/index.js";
@@ -304,23 +305,23 @@ describe("Edge cases: special characters in query", () => {
   });
 
   it("sanitizeFTS5 strips AND/OR/NOT/NEAR operators", () => {
-    expect(indexerInner!.sanitizeFTS5("pdf AND extract")).toBe('"pdf" "extract"');
-    expect(indexerInner!.sanitizeFTS5("test OR value")).toBe('"test" "value"');
-    expect(indexerInner!.sanitizeFTS5("NOT important")).toBe('"important"');
-    expect(indexerInner!.sanitizeFTS5("NEAR match")).toBe('"match"');
+    expect(sanitizeFTS5("pdf AND extract")).toBe('"pdf" "extract"');
+    expect(sanitizeFTS5("test OR value")).toBe('"test" "value"');
+    expect(sanitizeFTS5("NOT important")).toBe('"important"');
+    expect(sanitizeFTS5("NEAR match")).toBe('"match"');
   });
 
   it("sanitizeFTS5 handles parentheses and wildcards", () => {
     // "(group)" is a single token — not bare ( or ), so it's kept
-    expect(indexerInner!.sanitizeFTS5("(group)")).toBe('"(group)"');
+    expect(sanitizeFTS5("(group)")).toBe('"(group)"');
     // bare ( and ) are stripped, leaving the inner token
-    expect(indexerInner!.sanitizeFTS5("( bare )")).toBe('"bare"');
+    expect(sanitizeFTS5("( bare )")).toBe('"bare"');
     // lone * is stripped; word* would be kept
-    expect(indexerInner!.sanitizeFTS5("test * value")).toBe('"test" "value"');
+    expect(sanitizeFTS5("test * value")).toBe('"test" "value"');
   });
 
   it("sanitizeFTS5 escapes inner double quotes", () => {
-    const result = indexerInner!.sanitizeFTS5('say "hello" world');
+    const result = sanitizeFTS5('say "hello" world');
     expect(result).toBe('"say" """hello""" "world"');
   });
 
