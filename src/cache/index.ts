@@ -9,16 +9,13 @@ import {
   validateSkillName,
 } from "../skill-name.js";
 import { validateSkillContent } from "../validation/validator.js";
-
-export interface CachedSkillInfo {
-  id: string;
-  name: string;
-  marketplace: string;
-  filePath: string;
-  installedAt: string;
-  sizeBytes: number;
-  skillHash: string;
-}
+import {
+  CachedSkillInfo,
+  skillFileExists,
+  scanDir,
+  sumSize,
+  checkQuota,
+} from "./cache-helpers.js";
 
 export interface CacheConfig {
   globalDir: string; // ~/.config/opencode/skills/
@@ -229,61 +226,20 @@ export class CacheManager {
     maxSizeMb: number;
   } {
     const currentBytes = this.getCacheSize();
-    const currentSizeMb = currentBytes / (1024 * 1024);
-    const maxSizeMb = this.resolvedMaxCacheSizeMb;
-
-    return {
-      withinQuota: currentSizeMb <= maxSizeMb,
-      currentSizeMb: Math.round(currentSizeMb * 10000) / 10000,
-      maxSizeMb,
-    };
+    return checkQuota(currentBytes, this.resolvedMaxCacheSizeMb);
   }
 
   // --- private helpers ---
 
   private skillFileExists(dir: string, name: string): boolean {
-    return fs.existsSync(path.join(dir, name, "SKILL.md"));
+    return skillFileExists(dir, name);
   }
 
   private scanDir(dir: string, out: CachedSkillInfo[]): void {
-    if (!fs.existsSync(dir)) return;
-
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const skillFile = path.join(dir, entry.name, "SKILL.md");
-      if (!fs.existsSync(skillFile)) continue;
-
-      const stat = fs.statSync(skillFile);
-      const content = fs.readFileSync(skillFile);
-      const hash = crypto.createHash("sha256").update(content).digest("hex");
-
-      out.push({
-        id: entry.name,
-        name: entry.name,
-        marketplace: "unknown", // heuristic — refined when FTS5 index lands
-        filePath: skillFile,
-        installedAt: stat.mtime.toISOString(),
-        sizeBytes: stat.size,
-        skillHash: hash,
-      });
-    }
+    scanDir(dir, out);
   }
 
   private sumSize(dir: string): number {
-    if (!fs.existsSync(dir)) return 0;
-
-    let total = 0;
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const skillFile = path.join(dir, entry.name, "SKILL.md");
-      if (fs.existsSync(skillFile)) {
-        total += fs.statSync(skillFile).size;
-      }
-    }
-    return total;
+    return sumSize(dir);
   }
 }
