@@ -4,6 +4,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 import type { SkillFinderConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { PluginHooks } from "./plugin/hooks.js";
+import { SkillUsageTracker } from "./plugin/usage-tracker.js";
 import { ProjectScanner } from "./scanner/project-scanner.js";
 
 // Import tool definitions
@@ -72,13 +73,15 @@ export const SkillFinderPlugin: Plugin = async ({ project, client, $, directory,
     );
   }).catch(() => {});
 
-  const hooks = new PluginHooks();
+  const usageTracker = new SkillUsageTracker();
+  const hooks = new PluginHooks(undefined, usageTracker);
 
   return {
     // ── Hooks ──────────────────────────────────────────────────────
     event: hooks.onSessionCreated,
     "chat.message": hooks.onMessagePartUpdated,
     "tool.execute.before": hooks.onToolExecuteBefore,
+    "tool.execute.after": hooks.onToolExecuteAfter,
 
     // ── Custom tools ───────────────────────────────────────────────
     tool: {
