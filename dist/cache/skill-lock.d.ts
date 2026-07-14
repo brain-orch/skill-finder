@@ -1,33 +1,4 @@
-export interface LockMetadata {
-    installedAt: string;
-    version?: string;
-    marketplace: string;
-    versionRange?: string;
-    changelog?: string;
-    breaking?: boolean;
-    dependencies?: string[];
-}
-export interface LockedSkill {
-    identifier: string;
-    installedAt: string;
-    contentHash: string;
-    version?: string;
-    marketplace: string;
-    lastChecked: string;
-    targets: string[];
-    versionRange?: string;
-    changelog?: string;
-    breaking?: boolean;
-    dependencies?: string[];
-}
-export interface UpdateCheckResult {
-    identifier: string;
-    hasUpdate: boolean;
-    currentHash: string;
-    newHash?: string;
-    checkedAt: string;
-    breaking?: boolean;
-}
+import { LockMetadata, LockedSkill, UpdateCheckResult } from "./lock-types.js";
 export declare class SkillLockManager {
     private lockfilePath;
     private skillsDir;
@@ -76,4 +47,5 @@ export declare class SkillLockManager {
     private readLockfile;
     private writeLockfile;
 }
+export type { LockMetadata, LockedSkill, UpdateCheckResult } from './lock-types.js';
 //# sourceMappingURL=skill-lock.d.ts.map

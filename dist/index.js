@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "./config.js";
 import { PluginHooks } from "./plugin/hooks.js";
+import { SkillUsageTracker } from "./plugin/usage-tracker.js";
 import { ProjectScanner } from "./scanner/project-scanner.js";
 // Import tool definitions
 import { searchTool, setScanResult } from "./tools/search.js";
@@ -59,12 +60,14 @@ export const SkillFinderPlugin = async ({ project, client, $, directory, worktre
         setScanResult(result);
         console.log("skill-finder: project scan complete", result.detectedStacks.map((s) => s.name));
     }).catch(() => { });
-    const hooks = new PluginHooks();
+    const usageTracker = new SkillUsageTracker();
+    const hooks = new PluginHooks(undefined, usageTracker);
     return {
         // ── Hooks ──────────────────────────────────────────────────────
         event: hooks.onSessionCreated,
         "chat.message": hooks.onMessagePartUpdated,
         "tool.execute.before": hooks.onToolExecuteBefore,
+        "tool.execute.after": hooks.onToolExecuteAfter,
         // ── Custom tools ───────────────────────────────────────────────
         tool: {
             "skill-finder_search": searchTool,

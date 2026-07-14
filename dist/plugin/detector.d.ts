@@ -4,27 +4,9 @@
  * Analyzes user messages, tool calls, and session history to determine
  * which skill categories are relevant, with confidence scoring.
  */
-export interface DetectedContext {
-    categories: string[];
-    confidence: number;
-    signals: DetectedSignal[];
-    timestamp: number;
-}
-export interface DetectedSignal {
-    type: "keyword" | "extension" | "command" | "filename";
-    value: string;
-    category: string;
-    confidence: number;
-}
-export interface SessionHistoryEntry {
-    toolName: string;
-    args: Record<string, unknown>;
-    timestamp: number;
-}
-export interface TaskDetectorOptions {
-    maxHistorySize?: number;
-    confidenceThreshold?: number;
-}
+import type { DetectedContext, SessionHistoryEntry, TaskDetectorOptions } from "./categories.js";
+export { STOP_WORDS, KEYWORD_MAP, EXTENSION_MAP, COMMAND_MAP, } from "./categories.js";
+export type { KeywordEntry, ExtensionEntry, CommandEntry, DetectedContext, DetectedSignal, SessionHistoryEntry, TaskDetectorOptions, } from "./categories.js";
 export declare class TaskDetector {
     private history;
     private readonly maxHistorySize;
@@ -38,19 +20,14 @@ export declare class TaskDetector {
     analyzeHistory(): DetectedContext;
     /** Record a tool call to session history. */
     recordToolCall(toolName: string, args: Record<string, unknown>): void;
-    /** Clear session history. */
     clearHistory(): void;
-    /** Get current session history (shallow copy). */
     getHistory(): SessionHistoryEntry[];
     private keywordSignal;
     private extensionSignal;
     private commandSignal;
     private filenameSignal;
-    /** Deduplicate signals by category, keeping highest confidence, then build context. */
     private buildContext;
-    /** Merge multiple DetectedContexts into one. */
     mergeContexts(contexts: DetectedContext[]): DetectedContext;
-    /** Infer a general category from filename when extension match isn't specific enough. */
     private inferCategoryFromFilename;
 }
 //# sourceMappingURL=detector.d.ts.map

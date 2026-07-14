@@ -1,13 +1,4 @@
-interface JsonRpcResponse {
-    jsonrpc: "2.0";
-    id: string | number | null;
-    result?: unknown;
-    error?: {
-        code: number;
-        message: string;
-        data?: unknown;
-    };
-}
+import { type JsonRpcResponse } from "./constants.js";
 export declare class MCPServer {
     private readlineInterface;
     private initialized;
@@ -38,5 +29,4 @@ export declare class MCPServer {
      */
     private handleToolsCall;
 }
-export {};
 //# sourceMappingURL=server.d.ts.map

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as crypto from "node:crypto";
 import { getSkillNameFromIdentifier, validateSkillName, } from "../skill-name.js";
 import { validateSkillContent } from "../validation/validator.js";
+import { skillFileExists, scanDir, sumSize, checkQuota, } from "./cache-helpers.js";
 const DEFAULT_MAX_CACHE_SIZE_MB = 500;
 const DEFAULT_CACHE_TTL_HOURS = 24;
 const STALE_MAX_AGE_HOURS = 168; // 7 days
@@ -159,56 +160,17 @@ export class CacheManager {
      */
     checkQuota() {
         const currentBytes = this.getCacheSize();
-        const currentSizeMb = currentBytes / (1024 * 1024);
-        const maxSizeMb = this.resolvedMaxCacheSizeMb;
-        return {
-            withinQuota: currentSizeMb <= maxSizeMb,
-            currentSizeMb: Math.round(currentSizeMb * 10000) / 10000,
-            maxSizeMb,
-        };
+        return checkQuota(currentBytes, this.resolvedMaxCacheSizeMb);
     }
     // --- private helpers ---
     skillFileExists(dir, name) {
-        return fs.existsSync(path.join(dir, name, "SKILL.md"));
+        return skillFileExists(dir, name);
     }
     scanDir(dir, out) {
-        if (!fs.existsSync(dir))
-            return;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            if (!entry.isDirectory())
-                continue;
-            const skillFile = path.join(dir, entry.name, "SKILL.md");
-            if (!fs.existsSync(skillFile))
-                continue;
-            const stat = fs.statSync(skillFile);
-            const content = fs.readFileSync(skillFile);
-            const hash = crypto.createHash("sha256").update(content).digest("hex");
-            out.push({
-                id: entry.name,
-                name: entry.name,
-                marketplace: "unknown", // heuristic — refined when FTS5 index lands
-                filePath: skillFile,
-                installedAt: stat.mtime.toISOString(),
-                sizeBytes: stat.size,
-                skillHash: hash,
-            });
-        }
+        scanDir(dir, out);
     }
     sumSize(dir) {
-        if (!fs.existsSync(dir))
-            return 0;
-        let total = 0;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            if (!entry.isDirectory())
-                continue;
-            const skillFile = path.join(dir, entry.name, "SKILL.md");
-            if (fs.existsSync(skillFile)) {
-                total += fs.statSync(skillFile).size;
-            }
-        }
-        return total;
+        return sumSize(dir);
     }
 }
 //# sourceMappingURL=index.js.map

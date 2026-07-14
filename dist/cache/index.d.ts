@@ -1,14 +1,6 @@
 import type { SkillMarketplace } from "../types.js";
 import type { SkillIndexer } from "./indexer.js";
-export interface CachedSkillInfo {
-    id: string;
-    name: string;
-    marketplace: string;
-    filePath: string;
-    installedAt: string;
-    sizeBytes: number;
-    skillHash: string;
-}
+import { CachedSkillInfo } from "./cache-helpers.js";
 export interface CacheConfig {
     globalDir: string;
     projectDir: string;

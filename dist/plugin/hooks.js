@@ -4,6 +4,7 @@
  * Detects task categories from messages and tool calls,
  * applies debouncing to avoid redundant searches.
  */
+import { SkillUsageTracker } from "./usage-tracker.js";
 // Threshold defaults — tunable in future versions
 const HIGH_ACCEPTANCE_THRESHOLD = 0.5;
 const LOW_ACCEPTANCE_THRESHOLD = 0.2;
@@ -29,8 +30,11 @@ export class PluginHooks {
     acceptanceCount = 0;
     consecutiveDismissals = 0;
     suppressed = false;
-    constructor(config) {
+    announcedSkills = new Set();
+    usageTracker;
+    constructor(config, usageTracker) {
         this.config = { debounceMs: config?.debounceMs ?? DEFAULT_DEBOUNCE_MS };
+        this.usageTracker = usageTracker ?? new SkillUsageTracker();
     }
     /**
      * Fires on session.created.
@@ -43,6 +47,7 @@ export class PluginHooks {
         this.acceptanceCount = 0;
         this.consecutiveDismissals = 0;
         this.suppressed = false;
+        this.announcedSkills.clear();
     }
     /**
      * Fires on message.part.updated.
@@ -72,6 +77,37 @@ export class PluginHooks {
             if (this.canSearch(cat)) {
                 console.log(`skill-finder: detected category '${cat}' from tool`);
             }
+        }
+    }
+    /**
+     * Fires after every tool call.
+     * Detects if a skill file was read and sets the output title.
+     */
+    async onToolExecuteAfter(input, output) {
+        try {
+            const rec = input;
+            if (!rec)
+                return;
+            const toolName = (rec.toolName ?? rec.tool ?? "");
+            if (toolName !== "read")
+                return;
+            const args = (rec.args ?? {});
+            const filePath = String(args.filePath ?? args.path ?? args.filename ?? "");
+            if (!filePath)
+                return;
+            const info = this.usageTracker.detect(filePath);
+            if (!info)
+                return;
+            if (this.announcedSkills.has(info.identifier))
+                return;
+            this.announcedSkills.add(info.identifier);
+            const out = output;
+            if (out) {
+                out.title = this.usageTracker.formatDisplay(info);
+            }
+        }
+        catch {
+            // Silent — never break the tool pipeline
         }
     }
     /** Detect categories from free-form text via keyword matching. */

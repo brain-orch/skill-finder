@@ -1,11 +1,7 @@
 import type { SkillSearchResult } from "../types.js";
 import { type SkillPlan } from "../composer/skill-plan.js";
-export interface DetectedStack {
-    name: string;
-    category: string;
-    confidence: number;
-    source: string;
-}
+import { type DetectedStack } from "./parsers.js";
+export type { DetectedStack } from "./parsers.js";
 export interface ScanResult {
     detectedStacks: DetectedStack[];
     skillRecommendations: SkillSearchResult[];

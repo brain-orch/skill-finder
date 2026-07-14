@@ -2,8 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { validateSkillName } from "./skill-name.js";
-import { validateSkillContent } from "./validation/validator.js";
-import { SkillLockManager } from "./cache/skill-lock.js";
+import { placeSkillFiles, lockInstalledSkill } from "./activation-helpers.js";
 export class SkillActivator {
     config;
     warnedSessions = new Set();
@@ -46,9 +45,9 @@ export class SkillActivator {
         // 3. Check if user consent is provided and approved
         if (context.userConsent?.approved) {
             const targetDir = this.config.projectSkillsDir;
-            this.placeSkillFiles(safeSkillName, sourcePath, targetDir);
+            placeSkillFiles(this.config, safeSkillName, sourcePath, targetDir);
             const skillPath = path.join(targetDir, safeSkillName, "SKILL.md");
-            this.lockInstalledSkill(safeSkillName, skillPath);
+            lockInstalledSkill(safeSkillName, skillPath);
             return {
                 success: true,
                 skillName: safeSkillName,
@@ -61,9 +60,9 @@ export class SkillActivator {
         const hasPreApproved = context.categories.some((cat) => this.isPreApproved(cat));
         if (hasPreApproved) {
             const targetDir = this.config.globalSkillsDir;
-            this.placeSkillFiles(safeSkillName, sourcePath, targetDir);
+            placeSkillFiles(this.config, safeSkillName, sourcePath, targetDir);
             const skillPath = path.join(targetDir, safeSkillName, "SKILL.md");
-            this.lockInstalledSkill(safeSkillName, skillPath);
+            lockInstalledSkill(safeSkillName, skillPath);
             return {
                 success: true,
                 skillName: safeSkillName,
@@ -132,51 +131,6 @@ export class SkillActivator {
             return path.join(this.config.projectSkillsDir, safeSkillName, "SKILL.md");
         }
         return path.join(this.config.globalSkillsDir, safeSkillName, "SKILL.md");
-    }
-    /**
-     * Place skill files from source to target directory.
-     */
-    placeSkillFiles(skillName, sourcePath, targetDir) {
-        const safeSkillName = validateSkillName(skillName);
-        const skillTargetDir = path.join(targetDir, safeSkillName);
-        // Validate source SKILL.md before creating target directory
-        const skillFile = path.join(sourcePath, 'SKILL.md');
-        if (fs.existsSync(skillFile)) {
-            const content = fs.readFileSync(skillFile, 'utf-8');
-            const result = validateSkillContent(content, { name: skillName, marketplace: 'local' });
-            if (!result.valid) {
-                throw new Error(`Invalid skill content: ${result.errors.join(', ')}`);
-            }
-        }
-        fs.mkdirSync(skillTargetDir, { recursive: true });
-        // Get all files in source directory
-        if (fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory()) {
-            const files = fs.readdirSync(sourcePath);
-            for (const file of files) {
-                const srcFile = path.join(sourcePath, file);
-                const destFile = path.join(skillTargetDir, file);
-                fs.copyFileSync(srcFile, destFile);
-            }
-        }
-        else if (fs.existsSync(sourcePath)) {
-            // Source is a single file (e.g., SKILL.md)
-            fs.copyFileSync(sourcePath, path.join(skillTargetDir, "SKILL.md"));
-        }
-    }
-    lockInstalledSkill(skillName, skillPath) {
-        try {
-            if (!fs.existsSync(skillPath))
-                return;
-            const content = fs.readFileSync(skillPath, "utf-8");
-            const lockManager = new SkillLockManager();
-            lockManager.lockSkill(skillName, content, {
-                installedAt: new Date().toISOString(),
-                marketplace: "unknown",
-            });
-        }
-        catch (err) {
-            console.warn("[skill-finder] lockfile write failed during activation:", err instanceof Error ? err.message : String(err));
-        }
     }
     /**
      * Generate a consent prompt for the user.

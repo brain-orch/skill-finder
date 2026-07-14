@@ -4,6 +4,7 @@
  * Detects task categories from messages and tool calls,
  * applies debouncing to avoid redundant searches.
  */
+import { SkillUsageTracker } from "./usage-tracker.js";
 export interface HookConfig {
     debounceMs?: number;
 }
@@ -19,7 +20,9 @@ export declare class PluginHooks {
     private acceptanceCount;
     private consecutiveDismissals;
     private suppressed;
-    constructor(config?: HookConfig);
+    private announcedSkills;
+    private usageTracker;
+    constructor(config?: HookConfig, usageTracker?: SkillUsageTracker);
     /**
      * Fires on session.created.
      * Logs session start and resets debounce state.
@@ -35,6 +38,11 @@ export declare class PluginHooks {
      * Detects context from tool name and arguments.
      */
     onToolExecuteBefore(input: unknown, output: unknown): Promise<void>;
+    /**
+     * Fires after every tool call.
+     * Detects if a skill file was read and sets the output title.
+     */
+    onToolExecuteAfter(input: unknown, output: unknown): Promise<void>;
     /** Detect categories from free-form text via keyword matching. */
     detectCategories(text: string): string[];
     /** Check debounce: returns true if enough time has passed since last search for this category. */

@@ -1,20 +1,7 @@
-export interface ActivationConfig {
-    globalSkillsDir: string;
-    projectSkillsDir: string;
-    preApprovedCategories: string[];
-}
-export interface ActivationResult {
-    success: boolean;
-    skillName: string;
-    path: string;
-    message: string;
-    requiresConsent: boolean;
-}
-export interface UserConsent {
-    approved: boolean;
-    autoApproveFuture: boolean;
-    showDetails: boolean;
-}
+import { ActivationConfig, ActivationResult } from "./activation-types.js";
+import { UserConsent } from "./activation-helpers.js";
+export type { ActivationConfig, ActivationResult } from "./activation-types.js";
+export { UserConsent } from "./activation-helpers.js";
 export declare class SkillActivator {
     private config;
     private warnedSessions;
@@ -49,11 +36,6 @@ export declare class SkillActivator {
      * Get the path where a skill would be placed
      */
     getActivationPath(skillName: string, preferProject?: boolean): string;
-    /**
-     * Place skill files from source to target directory.
-     */
-    private placeSkillFiles;
-    private lockInstalledSkill;
     /**
      * Generate a consent prompt for the user.
      */

@@ -1,39 +1,4 @@
-import type { SkillSearchResult } from "../types.js";
-export interface SkillPlanSkill {
-    query: string;
-    reason: string;
-    category?: string;
-}
-export interface SkillPlan {
-    key: string;
-    name: string;
-    description: string;
-    matchCategories: string[];
-    skills: SkillPlanSkill[];
-    /** Populated after searchPlanSkills() */
-    searchResults?: SkillSearchResult[][];
-}
-export interface SkillPlanMeta {
-    key: string;
-    name: string;
-    description: string;
-    matchCategories: string[];
-}
-/**
- * Discover all saved plans from the plans directory.
- * Returns metadata for each plan found.
- */
-export declare function discoverPlans(projectRoot?: string): SkillPlanMeta[];
-/**
- * Load a plan by key from the plans directory.
- * Returns null if not found or if the plan is corrupt.
- */
-export declare function loadPlan(key: string, projectRoot?: string): SkillPlan | null;
-/**
- * Save a plan to the plans directory.
- * Creates the directory structure if it doesn't exist.
- */
-export declare function savePlan(plan: SkillPlan, projectRoot?: string): void;
+import { SkillPlan, SkillPlanMeta } from "./plan-helpers.js";
 export declare class SkillPlanComposer {
     /**
      * Compose skill plans based on detected stack categories.
@@ -61,4 +26,6 @@ export declare class SkillPlanComposer {
      */
     searchAllPlansSkills(plans: SkillPlan[]): Promise<SkillPlan[]>;
 }
+export type { SkillPlanSkill, SkillPlan, SkillPlanMeta } from "./plan-helpers.js";
+export { discoverPlans, loadPlan, savePlan } from "./plan-helpers.js";
 //# sourceMappingURL=skill-plan.d.ts.map

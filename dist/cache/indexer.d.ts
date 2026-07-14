@@ -28,7 +28,6 @@ export declare class SkillIndexer {
         count: number;
         lastRefresh: string | null;
     }>;
-    sanitizeFTS5(query: string): string;
     close(): void;
     refreshFromCache(cachedSkills: Array<{
         id: string;
