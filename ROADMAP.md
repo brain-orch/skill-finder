@@ -57,3 +57,9 @@ SkillFinder development milestones and future plans.
 - **Error Handling**: SkillFinderError class with typed error codes, exponential backoff with jitter for retries, logging in all catch blocks
 - **Programmatic API**: SkillFinderAPI class with 7 methods, exported as `opencode-skill-finder/api`
 - **Tests**: 789 total tests passing, 0 failures
+
+## v2.3.0 (Released)
+
+- **Skill Usage Indicator**: Chat displays skill name, marketplace, and trust grade when agent reads a skill file via `tool.execute.after` hook
+- **Trust Grade Persistence**: Trust grades computed at install time and stored in lockfile (`trustGrade` optional field in `LockMetadata` + `LockedSkill`)
+- **SkillUsageTracker**: New class for detecting installed skill file reads with cached path mapping and session-scoped deduplication

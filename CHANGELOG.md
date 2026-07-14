@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.3.0] - 2026-07-14
+
+### Features
+- **feat(plugin)**: Skill usage indicator — displays skill name, marketplace, and trust grade in chat when agent reads a skill file (e.g., "📖 Using skill: pdf-tools (lobehub · Trust Grade A)")
+- **feat(cache)**: Added optional `trustGrade` field to `LockMetadata` and `LockedSkill` interfaces for storing trust grade in lockfile
+- **feat(install)**: Trust grade now computed and stored during skill installation via `TrustScorer.score()` with graceful fallback on failure
+- **feat(plugin)**: New `SkillUsageTracker` class — loads lockfile, builds cached path map, detects skill file reads, formats display string
+- **feat(plugin)**: New `onToolExecuteAfter` hook — detects `read` tool calls to skill files, sets output title with skill info, deduplicates per session
+
 ## [2.2.1] - 2026-07-10
 
 ### Chore

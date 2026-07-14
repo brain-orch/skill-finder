@@ -148,6 +148,12 @@ SkillFinder enhances your OpenCode experience by:
 3. **Version Management** — Lockfile version pinning, changelog tracking, smart update notifications
 4. **Multi-Marketplace Aggregation** — Searches 8 marketplaces with dedup and category grouping
 5. **Plan Sharing** — Export/import skill collections as JSON with local plan registry
+6. **Skill Usage Indicator** — Shows skill name, marketplace, and trust grade in chat when the agent reads a skill file
+
+## Features (v2.3.0)
+
+- **Skill Usage Indicator** — When the agent reads a skill file, a display indicator shows the skill name, marketplace, and trust grade (e.g., "📖 Using skill: pdf-tools (lobehub · Trust Grade A)"). Deduplicated per session.
+- **Trust Grade in Lockfile** — Skill trust grades are now stored in the lockfile at install time for display and future filtering.
 
 ## Features (v2.2.0)
 
